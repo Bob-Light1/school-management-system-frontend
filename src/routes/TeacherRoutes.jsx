@@ -1,0 +1,29 @@
+import { Route } from 'react-router-dom';
+import { lazy } from 'react';
+
+// Lazy imports
+const TeacherDetails = lazy(() =>
+  import('../teacher/components/teacherDetails/TeacherDetails')
+);
+const ScheduleTeacher = lazy(() =>
+  import('../teacher/components/schedule/ScheduleTeacher')
+);
+const ExamTeacher = lazy(() =>
+  import('../teacher/components/examination/ExamTeacher')
+);
+const AttendanceTeacher = lazy(() =>
+  import('../teacher/components/attendance/AttendanceTeacher')
+);
+const NotifTeacher = lazy(() =>
+  import('../teacher/components/notification/NotifTeacher')
+);
+
+export const teacherRoutes = (
+    <>
+      <Route index element={<TeacherDetails />} />
+      <Route path="schedule" element={<ScheduleTeacher />} />
+      <Route path="examination" element={<ExamTeacher />} />
+      <Route path="attendance" element={<AttendanceTeacher />} />
+      <Route path="notification" element={<NotifTeacher />} />
+    </>
+);

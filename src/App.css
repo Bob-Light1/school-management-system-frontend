@@ -1,0 +1,26 @@
+*{
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Cache la scrollbar pour tous les navigateurs */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE et Edge */
+}
+
+*::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+/* Ou seulement pour le body */
+body {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overflow-y: scroll; /* Garde le scroll actif */
+}
+
+body::-webkit-scrollbar {
+  display: none;
+}
