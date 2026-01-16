@@ -24,9 +24,9 @@ import Avatar from '@mui/material/Avatar';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import { useAuth } from '../hooks/useAuth';
+import { IMAGE_BASE_URL } from '../config/env';
 
-
-//IMPORT ICONS
+// IMPORT ICONS
 import RecordVoiceOverIcon from '@mui/icons-material/RecordVoiceOver';
 import GroupIcon from '@mui/icons-material/Group';
 import DashboardCustomizeIcon from '@mui/icons-material/DashboardCustomize';
@@ -39,7 +39,6 @@ import ChecklistRtlIcon from '@mui/icons-material/ChecklistRtl';
 import ExplicitIcon from '@mui/icons-material/Explicit';
 import HomeIcon from '@mui/icons-material/Home';
 import LogoutIcon from '@mui/icons-material/Logout';
-
 
 const drawerWidth = 240;
 
@@ -149,34 +148,36 @@ export default function Campus() {
     handleClose();
     logout();
   };
-  const API_BASE_URL ='/images/uploaded/campus/';
-  const fullImageUrl = user?.image_url ? `${API_BASE_URL}${user.image_url}` : null;
 
+  const fullImageUrl = user?.image_url
+  ? `${IMAGE_BASE_URL}${user.image_url}?t=${new Date().getTime()}` 
+  : null;
+ 
 
   const navArray = [
-    {link:"/", component:"Home", icon:HomeIcon},
-    {link:"/campus/dashboard", component:"Dashboard", icon:DashboardCustomizeIcon},
-    {link:"/campus/students", component:"Students", icon:GroupIcon},
-    {link:"/campus/teachers", component:"Teachers", icon:RecordVoiceOverIcon},
-    {link:"/campus/parents", component:"Parents", icon:FamilyRestroomIcon},
-    {link:"/campus/classes", component:"Classes", icon:LibraryBooksIcon},
-    {link:"/campus/subjects", component:"Subjects", icon:SubjectIcon},
-    {link:"/campus/examination", component:"Examination", icon:ExplicitIcon},
-    {link:"/campus/schedule", component:"Schedule", icon:EventNoteIcon},
-    {link:"/campus/attendance", component:"Attendance", icon:ChecklistRtlIcon},
-    {link:"/campus/notification", component:"Notification", icon:NotificationsActiveIcon},
+    { link: "/", component: "Home", icon: HomeIcon },
+    { link: "/campus/dashboard", component: "Dashboard", icon: DashboardCustomizeIcon },
+    { link: "/campus/students", component: "Students", icon: GroupIcon },
+    { link: "/campus/teachers", component: "Teachers", icon: RecordVoiceOverIcon },
+    { link: "/campus/parents", component: "Parents", icon: FamilyRestroomIcon },
+    { link: "/campus/classes", component: "Classes", icon: LibraryBooksIcon },
+    { link: "/campus/subjects", component: "Subjects", icon: SubjectIcon },
+    { link: "/campus/examination", component: "Examination", icon: ExplicitIcon },
+    { link: "/campus/schedule", component: "Schedule", icon: EventNoteIcon },
+    { link: "/campus/attendance", component: "Attendance", icon: ChecklistRtlIcon },
+    { link: "/campus/notification", component: "Notification", icon: NotificationsActiveIcon },
   ];
 
   const navigate = useNavigate();
-  const handleNavigation = (link) =>{
+  const handleNavigation = (link) => {
     navigate(link);
-  }
+  };
 
   return (
     <Box sx={{ display: 'flex' }}>
       <CssBaseline />
       <AppBar position="fixed" open={open}>
-        <Toolbar sx={{ display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+        <Toolbar sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <IconButton
             color="inherit"
             aria-label="open drawer"
@@ -195,22 +196,22 @@ export default function Campus() {
             Manage Your Campus
           </Typography>
 
-          {/* Profil & Logout Section*/}
+          {/* Profile & Logout Section */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <IconButton onClick={handleProfileClick} sx={{ p: 0 }}>
-              <Avatar 
-                //
-                src={ fullImageUrl } 
+              <Avatar
+                // Optional: add user image
+                src={fullImageUrl}
                 alt={user?.manager_name}
-                sx={{ 
-                  bgcolor: user?.image_url ? 'transparent' : 'secondary.main', 
-                  width: 40, 
+                sx={{
+                  bgcolor: user?.image_url ? 'transparent' : 'secondary.main',
+                  width: 40,
                   height: 40,
                   border: '2px solid #fff',
                   boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }}
               >
-                {/* Contenu de secours : Initiales si l'image ne charge pas ou n'existe pas */}
+                {/* Fallback content: Initials if the image does not load */}
                 {user?.manager_name ? user.manager_name.charAt(0).toUpperCase() : 'U'}
               </Avatar>
             </IconButton>
@@ -219,15 +220,15 @@ export default function Campus() {
             </Typography>
           </Box>
 
-          {/* Menu déroulant */}
+          {/* Dropdown Menu */}
           <Menu
             anchorEl={anchorEl}
             open={openMenu}
             onClose={handleClose}
             transformOrigin={{ horizontal: 'right', vertical: 'top' }}
             anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-            sx={{ 
-             marginLeft:10,
+            sx={{
+              marginLeft: 10,
             }}
           >
             <MenuItem onClick={handleClose}>My profile</MenuItem>
@@ -240,7 +241,6 @@ export default function Campus() {
             </MenuItem>
           </Menu>
         </Toolbar>
-
       </AppBar>
       <Drawer variant="permanent" open={open}>
         <DrawerHeader>
@@ -271,8 +271,7 @@ export default function Campus() {
                     borderRight: '4px solid #4989c8',
                   }
                 ]}
-
-                onClick={() => { handleNavigation(navItem.link)}}
+                onClick={() => { handleNavigation(navItem.link) }}
               >
                 <ListItemIcon
                   sx={[
@@ -309,11 +308,11 @@ export default function Campus() {
         </List>
         <Divider />
       </Drawer>
-      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+      <Box component="main" sx={{ flexGrow: 1 }}>
         <DrawerHeader />
-          <Suspense fallback={<Loader />}>
-            <Outlet />
-          </Suspense>
+        <Suspense fallback={<Loader />}>
+          <Outlet />
+        </Suspense>
       </Box>
     </Box>
   );

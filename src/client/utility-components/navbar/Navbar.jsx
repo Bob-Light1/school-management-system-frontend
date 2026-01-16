@@ -13,8 +13,9 @@ import { useNavigate } from 'react-router-dom';
 
 const pages = [
   {link:"/", component:"Home"},
+  {link:"/allcampus", component:"Campus"},
   {link:"/login", component:"Login"},
-  {link:"/newcampus", component:"Create"}
+  {link:"/newcampus", component:"Create"},
 ]
 
 function Navbar() {

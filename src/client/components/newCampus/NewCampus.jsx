@@ -72,7 +72,7 @@ export default function CampusForm() {
 
         // Send request
         const response = await axios.post(
-          'http://localhost:5000/api/campus/create',
+          `${API_BASE_URL}/campus/create`,
           fd,
           {
             headers: {

@@ -1,6 +1,7 @@
 import { Route } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import Loader from '../components/Loader';
+import AllCampus from '../client/components/allCampus/AllCampus';
 
 // Lazy layouts & pages
 const Client = lazy(() => import('../client/Client'));
@@ -41,6 +42,14 @@ export const clientRoutes = (
         element={
           <Suspense fallback={<Loader />}>
             <NewCampus />
+          </Suspense>
+        }
+      />
+       <Route
+        path="allcampus"
+        element={
+          <Suspense fallback={<Loader />}>
+            <AllCampus />
           </Suspense>
         }
       />

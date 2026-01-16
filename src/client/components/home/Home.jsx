@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 40 },
@@ -25,6 +26,7 @@ const Home = () => {
   const [activeTab, setActiveTab] = useState(0);
   const { scrollYProgress } = useScroll();
   const y = useTransform(scrollYProgress, [0, 1], ['0%', '50%']);
+  const navigate = useNavigate();
   
   const stats = [
     { value: '10K+', label: 'Students Worldwide' },
@@ -164,6 +166,7 @@ const Home = () => {
           <motion.button
             whileHover={{ scale: 1.05, boxShadow: '0 20px 40px rgba(255, 127, 62, 0.3)' }}
             whileTap={{ scale: 0.95 }}
+            onClick={() => {navigate('/login')}}
             className="bg-gradient-to-r from-[#ff7f3e] to-[#ffda78] text-white px-10 py-4 rounded-full font-semibold shadow-lg"
           >
             Explore Programs →
@@ -312,7 +315,9 @@ const Home = () => {
               whileHover={{ y: -10 }}
               className="relative group bg-white/70 backdrop-blur-xl p-8 rounded-2xl shadow-xl border border-white overflow-hidden"
             >
-              <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${item.gradient} opacity-10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500`} />
+              <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${item.gradient} 
+              opacity-10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500`} 
+              />
               
               <motion.div
                 whileHover={{ scale: 1.2, rotate: 10 }}
@@ -377,9 +382,11 @@ const Home = () => {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.15 }}
                 whileHover={{ scale: 1.05, rotate: 2 }}
+                onClick={() => {navigate('/allCampus')}}
                 className="relative rounded-2xl overflow-hidden shadow-2xl group cursor-pointer"
               >
-                <div className="w-full h-64 bg-gradient-to-br from-[#4989c8] to-[#2a629a] flex items-center justify-center">
+                <div className="w-full h-64 bg-gradient-to-br from-[#4989c8] to-[#2a629a] 
+                flex items-center justify-center">
                   <motion.div
                     initial={{ scale: 0 }}
                     whileInView={{ scale: 1 }}
@@ -405,9 +412,10 @@ const Home = () => {
                   
                   <motion.button
                     whileHover={{ x: 5 }}
-                    className="mt-4 text-[#ffda78] font-semibold flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="mt-4 text-[#ffda78] font-semibold f
+                    lex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
-                    Learn more →
+                    Explore campus →
                   </motion.button>
                 </motion.div>
               </motion.div>
@@ -541,6 +549,7 @@ const Home = () => {
             <motion.button
               whileHover={{ scale: 1.1, boxShadow: '0 30px 60px rgba(42, 98, 154, 0.4)' }}
               whileTap={{ scale: 0.95 }}
+              onClick={() => {navigate('/login')}}
               className="bg-[#2a629a] text-white px-12 py-5 rounded-full font-semibold shadow-xl text-lg"
             >
               Get Started Now →

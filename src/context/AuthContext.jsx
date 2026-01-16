@@ -1,6 +1,8 @@
 import { createContext, useEffect, useState } from 'react';
+import { API_BASE_URL } from '../config/env';
 
 export const AuthContext = createContext(undefined);
+
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -9,7 +11,7 @@ export function AuthProvider({ children }) {
   // Login function with API call
   const login = async (credentials) => {
     try {
-      const response = await fetch('http://localhost:5000/api/campus/login', {
+      const response = await fetch(`${API_BASE_URL}/campus/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -95,10 +97,22 @@ export function AuthProvider({ children }) {
     initAuth();
   }, []);
 
+
+  const updateUser = (newData) => {
+    setUser(prev => {
+      const updatedUser = { ...prev, ...newData };
+
+      // On met à jour le localStorage pour que les changements persistent après un rafraîchissement (F5)
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      return updatedUser;
+    });
+  };
+
   const value = {
     user,
     login,
     logout,
+    updateUser,
     loading,
     isAuthenticated: !!user,
   };

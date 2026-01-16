@@ -1,0 +1,73 @@
+/* Container principal */
+.animated-background {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+/* Conteneur des bulles */
+.bubbles {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Base commune */
+.bubble {
+  position: absolute;
+  border-radius: 50%;
+  animation: floatBubble linear infinite;
+  opacity: 0.9;
+}
+
+/* Variantes */
+.b1 {
+  width: 320px;
+  height: 320px;
+  background: rgba(182, 216, 250, 0.35);
+  top: -80px;
+  left: -80px;
+  animation-duration: 28s;
+}
+
+.b2 {
+  width: 420px;
+  height: 420px;
+  background: rgba(140, 203, 230, 0.25);
+  bottom: -120px;
+  right: -100px;
+  animation-duration: 36s;
+}
+
+.b3 {
+  width: 260px;
+  height: 260px;
+  background: rgba(255, 255, 255, 0.479);
+  top: 30%;
+  left: 70%;
+  animation-duration: 22s;
+}
+
+.b4 {
+  width: 200px;
+  height: 200px;
+  background: rgba(181, 183, 185, 0.2);
+  top: 70%;
+  left: 10%;
+  animation-duration: 30s;
+}
+
+/* Animation douce */
+@keyframes floatBubble {
+  0% {
+    transform: translateY(0) translateX(0) scale(1);
+  }
+  50% {
+    transform: translateY(-60px) translateX(40px) scale(1.1);
+  }
+  100% {
+    transform: translateY(0) translateX(0) scale(1);
+  }
+}

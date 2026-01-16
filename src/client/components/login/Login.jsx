@@ -1,271 +1,215 @@
 import * as React from 'react';
-import Box from '@mui/material/Box';
-import IconButton from '@mui/material/IconButton';
-import InputLabel from '@mui/material/InputLabel';
-import InputAdornment from '@mui/material/InputAdornment';
-import FormControl from '@mui/material/FormControl';
-import OutlinedInput from '@mui/material/OutlinedInput';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useFormik } from 'formik';
+import {
+  Box, 
+  IconButton, 
+  InputLabel, 
+  InputAdornment, 
+  FormControl, 
+  OutlinedInput, 
+  CircularProgress, 
+  Typography,
+  Button, 
+  FormHelperText, 
+  Snackbar, 
+  Alert, 
+  Paper, 
+  Stack, 
+  Divider
+} from '@mui/material';
+import MailOutlineIcon from '@mui/icons-material/MailOutline';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import CircularProgress from '@mui/material/CircularProgress';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; 
-import {
-  Card,
-  CardContent,
-  Container,
-  Typography,
-  Grid,
-  Button,
-  FormHelperText,
-  Snackbar,
-  Alert,
-} from '@mui/material';
-import { useFormik } from 'formik';
+
 import { loginSchema } from '../../../yupSchema/loginSchema';
 import { useAuth } from '../../../hooks/useAuth';
+import '../../styles/animatedBackground.css';
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: '',
-    severity: 'success',
-  });
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  // useFormik
   const formik = useFormik({
-    initialValues: {
-      email: '',
-      password: '',
-    },
+    initialValues: { email: '', password: '' },
     validationSchema: loginSchema,
     onSubmit: async (values) => {
       setIsLoading(true);
-
       try {
-        console.log('📤 Submit values:', values);
-
-        // Send JSON data (NOT FormData)
-        await login({
-          email: values.email,
-          password: values.password,
-        });
-
-        // Show success message
-        setSnackbar({
-          open: true,
-          message: 'Login successful!',
-          severity: 'success',
-        });
-
-        // Redirect to dashboard after 1 second
-        setTimeout(() => {
-          navigate('/campus');
-        }, 1000);
-
+        await login({ email: values.email, password: values.password });
+        setSnackbar({ open: true, message: 'welcome ! Connected successfully.', severity: 'success' });
+        setTimeout(() => navigate('/campus'), 1200);
       } catch (error) {
-        console.error('❌ Submission error:', error);
-
-        // Handle rate limiting (429)
-        if (error.response?.status === 429) {
-          const retryAfter = error.response.data.retryAfter || 900; // 15 min default
-          const minutes = Math.ceil(retryAfter / 60);
-
-          setSnackbar({
-            open: true,
-            message: `Too many login attempts. Please wait ${minutes} minute(s) before trying again.`,
-            severity: 'error',
-          });
-        } else {
-          // Extract error message
-          const errorMessage =
-            error.message ||
-            error.response?.data?.message ||
-            'Login failed. Please check your credentials.';
-
-          setSnackbar({
-            open: true,
-            message: errorMessage,
-            severity: 'error',
-          });
-        }
+        const errorMessage = error.message || 'Failed to connect. Verify your credentials.';
+        setSnackbar({ open: true, message: errorMessage, severity: 'error' });
       } finally {
         setIsLoading(false);
       }
     },
   });
 
-  const handleClickShowPassword = () => {
-    setShowPassword((prev) => !prev);
-  };
-
-  const handleCloseSnackbar = (event, reason) => {
-    if (reason === 'clickaway') {
-      return;
-    }
-    setSnackbar({ ...snackbar, open: false });
-  };
-
   return (
-    <>
-      <Container
-        maxWidth="sm"
-        sx={{
-          minHeight: '75vh',
-          display: 'flex',
-          alignItems: 'center',
+    <Box 
+      sx={{ 
+        minHeight: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        p: 2, 
+        position: 'relative',
+        overflow: 'hidden'
+      }}
+      className="animated-background"
+    >
+
+      {/* Bubbles */}
+      <Box className="bubbles">
+        <span className="bubble b1" />
+        <span className="bubble b2" />
+        <span className="bubble b3" />
+        <span className="bubble b4" />
+      </Box>
+
+      <Paper elevation={20} sx={{ 
+        display: 'flex', 
+        width: '100%', 
+        maxWidth: 1000, 
+        borderRadius: 6, 
+        overflow: 'hidden',
+        minHeight: 600,
+        zIndex: 2,
+        position: 'relative',
+        backdropFilter: 'blur(10px)', // Glass effect on the form
+       backgroundColor: 'rgba(255,255,255,0.9)'
+      }}>
+        
+        {/* Left part : hide on mobile devices */}
+        <Box sx={{ 
+          flex: 1, 
+          display: { xs: 'none', md: 'flex' }, 
+          flexDirection: 'column',
           justifyContent: 'center',
-          marginTop: 4,
-        }}
-      >
-        <Card
-          elevation={6}
-          sx={{
-            width: '100%',
-            borderRadius: 4,
-            px: { xs: 2, sm: 3 },
-            py: 3,
-          }}
-        >
-          <CardContent>
-            {/* Header */}
-            <Box sx={{ mb: 4, textAlign: 'center' }}>
-              <Typography variant="h5" fontWeight="bold">
-                Sign In
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Sign in with your email and password
-              </Typography>
-            </Box>
+          alignItems: 'center',
+          background: 'linear-gradient(45deg, #4989c8 30%, #3a6fa8 90%)',
+          color: 'white',
+          p: 6,
+          textAlign: 'center'
+        }}>
+         <Typography variant="h3" fontWeight="800" gutterBottom>
+            wewigo
+        </Typography>
+        <Typography variant="h6" sx={{ opacity: 0.9, fontWeight: 300, mb: 4 }}>
+            The excellent platform for managing your campuses.
+        </Typography>
+        <Box component="img" 
+            src="vite.svg" // Optional: add an illustration
+            sx={{ width: '80%', maxWidth: 300, filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.2))' }} 
+        />
+        </Box>
 
-            {/* Form */}
-            <Box component="form" onSubmit={formik.handleSubmit}>
-              <Grid container spacing={2}>
-                {/* Email */}
-                <Grid size={12}>
-                  <FormControl
-                    fullWidth
-                    error={formik.touched.email && Boolean(formik.errors.email)}
-                  >
-                    <InputLabel>Email</InputLabel>
-                    <OutlinedInput
-                      type="email"
-                      name="email"
-                      label="Email"
-                      value={formik.values.email}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                      disabled={isLoading}
-                      startAdornment={
-                        <InputAdornment position="start">📧</InputAdornment>
-                      }
-                    />
-                    {formik.touched.email && formik.errors.email && (
-                      <FormHelperText>{formik.errors.email}</FormHelperText>
-                    )}
-                  </FormControl>
-                </Grid>
+        {/* Right Side: Form */}
+        <Box sx={{ flex: 1, p: { xs: 4, sm: 8 }, bgcolor: 'white' }}>
+            <Stack spacing={1} sx={{ mb: 5 }}>
+                <Typography variant="h4" fontWeight="800" color="text.primary">
+                    Login
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
+                    Happy to see you again!
+                </Typography>
+            </Stack>
 
-                {/* Password */}
-                <Grid size={12}>
-                  <FormControl
-                    fullWidth
-                    error={
-                      formik.touched.password && Boolean(formik.errors.password)
-                    }
-                  >
-                    <InputLabel>Password</InputLabel>
-                    <OutlinedInput
-                      type={showPassword ? 'text' : 'password'}
-                      name="password"
-                      label="Password"
-                      value={formik.values.password}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                      disabled={isLoading}
-                      endAdornment={
-                        <InputAdornment position="end">
-                          <IconButton
-                            onClick={handleClickShowPassword}
-                            edge="end"
-                            disabled={isLoading}
-                          >
-                            {showPassword ? <VisibilityOff /> : <Visibility />}
-                          </IconButton>
-                        </InputAdornment>
-                      }
-                    />
-                    {formik.touched.password && formik.errors.password && (
-                      <FormHelperText>{formik.errors.password}</FormHelperText>
-                    )}
-                  </FormControl>
-                </Grid>
+          <form onSubmit={formik.handleSubmit}>
+            <Stack spacing={3}>
+              <FormControl fullWidth error={formik.touched.email && Boolean(formik.errors.email)}>
+                <InputLabel>Email</InputLabel>
+                <OutlinedInput
+                  name="email"
+                  label="Email"
+                  value={formik.values.email}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  startAdornment={
+                    <InputAdornment position="start">
+                      <MailOutlineIcon sx={{ color: 'action.active' }} />
+                    </InputAdornment>
+                  }
+                  sx={{ borderRadius: 3 }}
+                />
+                {formik.touched.email && <FormHelperText>{formik.errors.email}</FormHelperText>}
+              </FormControl>
 
-                {/* Submit Button */}
-                <Grid size={12}>
-                  <Button
-                    type="submit"
-                    fullWidth
-                    size="large"
-                    variant="contained"
-                    disabled={formik.isSubmitting || isLoading}
-                    sx={{
-                      mt: 2,
-                      py: 1.3,
-                      borderRadius: 2,
-                      fontWeight: 'bold',
-                      backgroundColor: '#4989c8',
-                      '&:hover': {
-                        backgroundColor: '#3a6fa8',
-                      },
-                      '&:disabled': {
-                        backgroundColor: '#cccccc',
-                      },
-                    }}
-                  >
-                    {isLoading ? (
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 1,
-                        }}
-                      >
-                        <CircularProgress size={20} color="inherit" />
-                        <span>Signing in...</span>
-                      </Box>
-                    ) : (
-                      'Sign In'
-                    )}
-                  </Button>
-                </Grid>
-              </Grid>
-            </Box>
-          </CardContent>
-        </Card>
-      </Container>
+              <FormControl fullWidth error={formik.touched.password && Boolean(formik.errors.password)}>
+                <InputLabel>password</InputLabel>
+                <OutlinedInput
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  label="Password"
+                  value={formik.values.password}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  sx={{ borderRadius: 3 }}
+                  startAdornment={
+                    <InputAdornment position="start">
+                      <LockOutlinedIcon sx={{ color: 'action.active' }} />
+                    </InputAdornment>
+                  }
+                  endAdornment={
+                    <InputAdornment position="end">
+                      <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  }
+                />
+                {formik.touched.password && <FormHelperText>{formik.errors.password}</FormHelperText>}
+              </FormControl>
 
-      {/* Snackbar Notification */}
+              <Button
+                type="submit"
+                fullWidth
+                size="large"
+                variant="contained"
+                disabled={isLoading}
+                sx={{
+                  py: 1.8,
+                  borderRadius: 3,
+                  fontWeight: 'bold',
+                  fontSize: '1rem',
+                  textTransform: 'none',
+                  boxShadow: '0 8px 16px rgba(73, 137, 200, 0.24)',
+                  backgroundColor: '#4989c8',
+                  '&:hover': { backgroundColor: '#3a6fa8', boxShadow: '0 12px 20px rgba(73, 137, 200, 0.35)' },
+                }}
+              >
+                {isLoading ? <CircularProgress size={24} color="inherit" /> : "Connect To Dashboard"}
+              </Button>
+            </Stack>
+          </form>
+
+          <Box sx={{ mt: 4, textAlign: 'center' }}>
+             <Typography variant="body2" color="text.secondary">
+               Need Help ? <a href="#" style={{ color: '#4989c8', fontWeight: 600, textDecoration: 'none' }}>Contact Support</a>
+             </Typography>
+          </Box>
+        </Box>
+      </Paper>
+
       <Snackbar
         open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert
-          onClose={handleCloseSnackbar}
-          severity={snackbar.severity}
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
+        <Alert severity={snackbar.severity} variant="filled" sx={{ borderRadius: 2 }}>
           {snackbar.message}
         </Alert>
       </Snackbar>
-    </>
+    </Box>
   );
 }
