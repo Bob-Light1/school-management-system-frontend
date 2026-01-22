@@ -1,11 +1,667 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react';
+import {
+  Box,
+  Button,
+  Container,
+  Typography,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  IconButton,
+  Dialog,
+  DialogContent,
+  TextField,
+  Stack,
+  Tooltip,
+  InputAdornment,
+  Skeleton,
+  Divider,
+  Chip,
+  MenuItem,
+  Snackbar,
+  Alert,
+  useTheme,
+  useMediaQuery,
+  Card,
+  CardContent,
+  Grid,
+} from '@mui/material';
 
-const Subjects = () => {
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Restore as RestoreIcon,
+  Close as CloseIcon,
+  Book as BookIcon,
+  Palette as PaletteIcon,
+  Business as BusinessIcon,
+  CheckCircle as SuccessIcon,
+  Error as ErrorIcon,
+  Warning as WarningIcon,
+} from '@mui/icons-material';
+
+import { Formik, Form } from 'formik';
+import axios from 'axios';
+
+import { API_BASE_URL } from '../../../config/env';
+import { createSubjectSchema } from '../../../yupSchema/createSubjectSchema';
+import MobileSubjectCard from './MobileSubjectCard';
+
+const Subject = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('lg'));
+
+  const [subjects, setSubjects] = useState([]);
+  const [campuses, setCampuses] = useState([]);
+  const [selectedSubject, setSelectedSubject] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Enhanced notification system
+  const [notification, setNotification] = useState({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
+
+  const isEditMode = Boolean(selectedSubject);
+
+  // Get authentication header
+  const getAuthHeader = () => ({
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+    },
+  });
+
+  // Show notification helper
+  const showNotification = (message, severity = 'success') => {
+    setNotification({ open: true, message, severity });
+  };
+
+  const handleCloseNotification = (event, reason) => {
+    if (reason === 'clickaway') return;
+    setNotification({ ...notification, open: false });
+  };
+
+  const authHeader = () => ({
+    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+  });
+
+  /* ---------------- FETCH ---------------- */
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [subjectRes, campusRes] = await Promise.all([
+        axios.get(`${API_BASE_URL}/subject`, authHeader()),
+        axios.get(`${API_BASE_URL}/campus/all`, authHeader()),
+      ]);
+      
+      setSubjects(subjectRes.data?.data || []);
+      setCampuses(campusRes.data?.allCampus || []);
+
+    } catch (e) {
+      setErrorMsg('Failed to load subjects');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  /* ---------------- SUBMIT ---------------- */
+  const handleSubmit = async (values, { setSubmitting, resetForm }) => {
+    try {
+      if (isEditMode) {
+        await axios.put(
+          `${API_BASE_URL}/subject/${selectedSubject._id}`,
+          values,
+          getAuthHeader()
+        );
+        showNotification('Subject updated successfully!', 'success');
+      } else {
+        await axios.post(`${API_BASE_URL}/subject`, values, getAuthHeader());
+        showNotification('Subject created successfully!', 'success');
+      }
+
+      resetForm();
+      setOpen(false);
+      setSelectedSubject(null);
+      await fetchData();
+    } catch (e) {
+      const msg = e.response?.data?.message || 
+        (isEditMode ? 'Failed to update subject' : 'Failed to create subject');
+      showNotification(msg, 'error');
+      console.error('Submit error:', e);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  /* ---------------- DELETE / RESTORE ---------------- */
+  const handleArchive = async (id) => {
+    if (!window.confirm('Archive this subject?')) return;
+    
+    try {
+      await axios.delete(`${API_BASE_URL}/subject/${id}`, getAuthHeader());
+      showNotification('Subject archived successfully', 'success');
+      await fetchData();
+    } catch (e) {
+      showNotification('Failed to archive subject', 'error');
+      console.error(e);
+    }
+  };
+
+  const handleRestore = async (id) => {
+    try {
+      await axios.patch(
+        `${API_BASE_URL}/subject/${id}/restore`,
+        {},
+        getAuthHeader()
+      );
+      showNotification('Subject restored successfully', 'success');
+      await fetchData();
+    } catch (e) {
+      showNotification('Failed to restore subject', 'error');
+      console.error(e);
+    }
+  };
+
+  const handleOpenCreate = () => {
+    setSelectedSubject(null);
+    setOpen(true);
+  };
+
+  const handleOpenEdit = (subject) => {
+    setSelectedSubject(subject);
+    setOpen(true);
+  };
+
+  const isEmpty = !loading && subjects.length === 0;
+ 
   return (
-    <div>
-      <h1>SUBJECTS COMPONENT</h1>
-    </div>
-  )
-}
+    <Container
+      maxWidth="xl"
+      sx={{
+        mt: { xs: 2, sm: 3, md: 4 },
+        mb: { xs: 4, sm: 5, md: 6 },
+        px: { xs: 2, sm: 3 },
+      }}
+    >
+      {/* HEADER - Responsive */}
+      <Box
+        display="flex"
+        flexDirection={{ xs: 'column', md: 'row' }}
+        justifyContent="space-between"
+        alignItems={{ xs: 'flex-start', md: 'center' }}
+        gap={{ xs: 2, md: 0 }}
+        mb={{ xs: 3, md: 4 }}
+      >
+        <Box>
+          <Typography
+            variant={isMobile ? 'h5' : 'h4'}
+            fontWeight={800}
+            gutterBottom
+            textAlign={{ xs: 'center', lg: 'start' }}
+          >
+            Subjects Management
+          </Typography>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            display={{ xs: 'none', sm: 'block' }}
+            textAlign={{ xs: 'center', lg: 'start' }}
+          >
+            Manage academic subjects for your campus
+          </Typography>
+        </Box>
 
-export default Subjects
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={handleOpenCreate}
+          fullWidth={isMobile}
+          sx={{
+            borderRadius: 2,
+            px: { xs: 2, sm: 3 },
+            py: 1.2,
+          }}
+        >
+          New Subject
+        </Button>
+      </Box>
+
+      {/* Mobile View - Cards */}
+      {isMobile ? (
+        <Box>
+          {loading ? (
+            [...Array(3)].map((_, i) => (
+              <Card key={i} sx={{ mb: 2, borderRadius: 3 }}>
+                <CardContent>
+                  <Skeleton height={120} animation="wave" />
+                </CardContent>
+              </Card>
+            ))
+          ) : isEmpty ? (
+            <Paper
+              elevation={0}
+              sx={{
+                p: 6,
+                textAlign: 'center',
+                borderRadius: 3,
+                bgcolor: 'grey.50',
+              }}
+            >
+              <BookIcon sx={{ fontSize: 64, color: 'grey.300', mb: 2 }} />
+              <Typography variant="h6" color="text.secondary" gutterBottom>
+                No subjects yet
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Create your first subject to get started
+              </Typography>
+            </Paper>
+          ) : (
+            subjects.map((subj) => (
+              <MobileSubjectCard 
+                key={subj._id} 
+                subject={subj} 
+                edit={handleOpenEdit} 
+                archive={handleArchive} 
+                restore={handleRestore}
+              />
+            ))
+          )}
+        </Box>
+      ) : (
+        /* Desktop/Tablet View - Table */
+        <TableContainer
+          component={Paper}
+          elevation={3}
+          sx={{
+            borderRadius: 3,
+            overflow: 'hidden',
+            '& .MuiTableCell-root': {
+              fontSize: isTablet ? '0.875rem' : '1rem',
+            },
+          }}
+        >
+          <Table>
+            <TableHead sx={{ bgcolor: 'grey.100' }}>
+              <TableRow>
+                <TableCell>Subject</TableCell>
+                <TableCell>Code</TableCell>
+                <TableCell>Campus</TableCell>
+                <TableCell>Coefficient</TableCell>
+                <TableCell>Color</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {loading ? (
+                [...Array(5)].map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell colSpan={7}>
+                      <Skeleton height={48} animation="wave" />
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : isEmpty ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
+                    <BookIcon sx={{ fontSize: 64, color: 'grey.300', mb: 2 }} />
+                    <Typography variant="subtitle1" color="text.secondary">
+                      No subjects registered at the moment
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                subjects.map((subj) => (
+                  <TableRow key={subj._id} hover>
+                    <TableCell>
+                      <Stack direction="row" spacing={1.5} alignItems="center">
+                        <BookIcon fontSize="small" color="action" />
+                        <Typography fontWeight={600}>
+                          {subj.subject_name}
+                        </Typography>
+                      </Stack>
+                    </TableCell>
+
+                    <TableCell>
+                      <Chip label={subj.subject_code} size="small" />
+                    </TableCell>
+
+                    <TableCell>
+                      {subj.schoolCampus?.campus_name || '—'}
+                    </TableCell>
+
+                    <TableCell>{subj.coefficient}</TableCell>
+
+                    <TableCell>
+                      {subj.color ? (
+                        <Box
+                          sx={{
+                            width: 40,
+                            height: 20,
+                            bgcolor: subj.color,
+                            border: '1px solid #ddd',
+                            borderRadius: 1,
+                          }}
+                        />
+                      ) : (
+                        '—'
+                      )}
+                    </TableCell>
+
+                    <TableCell>
+                      <Chip
+                        label={subj.isActive ? 'Active' : 'Archived'}
+                        color={subj.isActive ? 'success' : 'default'}
+                        size="small"
+                      />
+                    </TableCell>
+
+                    <TableCell align="right">
+                      <Tooltip title="Edit">
+                        <IconButton
+                          color="primary"
+                          size="small"
+                          onClick={() => handleOpenEdit(subj)}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+
+                      {subj.isActive ? (
+                        <Tooltip title="Archive">
+                          <IconButton
+                            color="error"
+                            size="small"
+                            onClick={() => handleArchive(subj._id)}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip title="Restore">
+                          <IconButton
+                            color="success"
+                            size="small"
+                            onClick={() => handleRestore(subj._id)}
+                          >
+                            <RestoreIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+
+      {/* CREATE / EDIT MODAL - Responsive */}
+      <Dialog
+        open={open}
+        onClose={() => {
+          setOpen(false);
+          setSelectedSubject(null);
+        }}
+        maxWidth="sm"
+        fullWidth
+        fullScreen={isMobile}
+        disableEnforceFocus={true}
+        closeAfterTransition={false}
+        aria-labelledby="create-subject-title"
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: isMobile ? 0 : 3,
+            },
+          },
+        }}
+      >
+        <Box
+          sx={{
+            p: 2,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            bgcolor: 'primary.main',
+            color: 'white',
+          }}
+        >
+          <Typography id="create-subject-title" variant="h6" fontWeight={700}>
+            {isEditMode ? 'Edit Subject' : 'New Subject'}
+          </Typography>
+          <IconButton
+            onClick={() => setOpen(false)}
+            size="small"
+            sx={{ color: 'white' }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </Box>
+
+        <DialogContent sx={{ pt: 3, px: { xs: 2, sm: 3 } }}>
+          <Formik
+            enableReinitialize
+            initialValues={{
+              schoolCampus: selectedSubject?.schoolCampus?._id || '',
+              subject_name: selectedSubject?.subject_name || '',
+              subject_code: selectedSubject?.subject_code || '',
+              description: selectedSubject?.description || '',
+              coefficient: selectedSubject?.coefficient || 1,
+              color: selectedSubject?.color || '#1976d2',
+            }}
+            validationSchema={createSubjectSchema}
+            onSubmit={handleSubmit}
+          >
+            {({ values, errors, touched, handleChange, handleBlur, isSubmitting }) => (
+              <Form>
+                <Stack spacing={3}>
+                  <TextField
+                    select
+                    label="Campus"
+                    name="schoolCampus"
+                    value={values.schoolCampus || ''}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    error={touched.schoolCampus && Boolean(errors.schoolCampus)}
+                    helperText={touched.schoolCampus && errors.schoolCampus}
+                    fullWidth
+                    slotProps={{
+                      input: {
+                        id: 'schoolCampus',
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <BusinessIcon fontSize="small" />
+                          </InputAdornment>
+                        ),
+                      },
+                      inputLabel: {
+                        htmlFor: 'schoolCampus',
+                      },
+                    }}
+                  >
+                    {(Array.isArray(campuses) ? campuses : []).map((camp) => (
+                      <MenuItem key={camp._id} value={camp._id}>
+                        {camp.campus_name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+
+                  <TextField
+                    autoFocus={!isMobile}
+                    label="Subject Name"
+                    name="subject_name"
+                    value={values.subject_name}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    error={touched.subject_name && Boolean(errors.subject_name)}
+                    helperText={touched.subject_name && errors.subject_name}
+                    fullWidth
+                    slotProps={{
+                       id:"subject_name",
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <BookIcon color="primary" />
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
+                  />
+
+                  <TextField
+                    label="Subject Code"
+                    name="subject_code"
+                    value={values.subject_code}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    error={touched.subject_code && Boolean(errors.subject_code)}
+                    helperText={touched.subject_code && errors.subject_code}
+                    fullWidth
+                    slotProps={{
+                      input: { id: 'subject_code' },
+                      inputLabel: { htmlFor: 'subject_code' },
+                    }}
+                  />
+
+                  <TextField
+                    type="number"
+                    label="Coefficient"
+                    name="coefficient"
+                    value={values.coefficient}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    error={touched.coefficient && Boolean(errors.coefficient)}
+                    helperText={touched.coefficient && errors.coefficient}
+                    fullWidth
+                    slotProps={{
+                      input: { id: 'coefficient' },
+                      inputLabel: { htmlFor: 'coefficient' },
+                    }}
+                  />
+
+                  <TextField
+                    type="color"
+                    label="Color"
+                    name="color"
+                    value={values.color}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    fullWidth
+                    slotProps={{
+                      input: {
+                        id: 'color',
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <PaletteIcon />
+                          </InputAdornment>
+                        ),
+                      },
+                      inputLabel: {
+                        htmlFor: 'color',
+                      },
+                    }}
+                  />
+
+                  <TextField
+                    label="Description"
+                    name="description"
+                    multiline
+                    rows={3}
+                    value={values.description}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    fullWidth
+                    slotProps={{
+                      input: { id: 'description' },
+                      inputLabel: { htmlFor: 'description' },
+                    }}
+                  />
+
+                  <Stack
+                    direction={{ xs: 'column', lg: 'row' }}
+                    spacing={2}
+                    sx={{ mt: 4 }}
+                  >
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      onClick={() => setOpen(false)}
+                      disabled={isSubmitting}
+                      sx={{ order: { xs: 2, lg: 1 } }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      fullWidth
+                      type="submit"
+                      variant="contained"
+                      disabled={isSubmitting}
+                      sx={{ order: { xs: 1, lg: 2 } }}
+                    >
+                      {isSubmitting
+                        ? 'In progress...'
+                        : isEditMode
+                        ? 'Update'
+                        : 'Create Subject'
+                      }
+                    </Button>
+                  </Stack>
+                </Stack>
+              </Form>
+            )}
+          </Formik>
+        </DialogContent>
+      </Dialog>
+
+      {/* Enhanced Snackbar Notifications */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={6000}
+        onClose={handleCloseNotification}
+        anchorOrigin={{
+          vertical: isMobile ? 'bottom' : 'top',
+          horizontal: isMobile ? 'center' : 'right',
+        }}
+        sx={{
+          bottom: isMobile ? 80 : undefined,
+        }}
+      >
+        <Alert
+          onClose={handleCloseNotification}
+          severity={notification.severity}
+          variant="filled"
+          iconMapping={{
+            success: <SuccessIcon fontSize="inherit" />,
+            error: <ErrorIcon fontSize="inherit" />,
+            warning: <WarningIcon fontSize="inherit" />,
+          }}
+          sx={{
+            width: '100%',
+            minWidth: isMobile ? '90vw' : 300,
+            boxShadow: 3,
+            borderRadius: 2,
+          }}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
+    </Container>
+  );
+};
+
+export default Subject;

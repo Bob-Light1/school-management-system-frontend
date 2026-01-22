@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   Box, Grid, Card, CardMedia, CardContent, Typography, 
   IconButton, Modal, Backdrop, Button, Avatar, Chip, TextField, InputAdornment
@@ -60,22 +60,6 @@ export default function AllCampus() {
     campus.manager_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
-  };
-
-  const cardVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { type: 'spring', stiffness: 100 }
-    }
-  };
 
   return (
     <Box sx={{ 

@@ -11,7 +11,7 @@ const Footer = () => {
         color: 'white',
         pt: 6,
         pb: 3,
-        mt: 8,
+        mt: 4,
         position: 'relative',
         overflow: 'hidden',
         '&::before': {
@@ -26,9 +26,9 @@ const Footer = () => {
         }
       }}
     >
-      <Container maxWidth="lg">
+      <Container maxWidth="xl">
         <Grid container spacing={4}>
-          {/* Section À propos */}
+          {/* About Section */}
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <School sx={{ fontSize: 32, mr: 1 }} />
@@ -37,17 +37,17 @@ const Footer = () => {
               </Typography>
             </Box>
             <Typography variant="body2" sx={{ opacity: 0.9, lineHeight: 1.7 }}>
-              Une solution complète pour la gestion moderne des établissements scolaires et universitaires.
+              A comprehensive solution for modern management of schools and universities.
             </Typography>
           </Grid>
 
-          {/* Section Liens rapides */}
+          {/* Quick Links Section */}
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
-              Liens Rapides
+              Quick Links
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {['Accueil', 'Campus', 'Étudiants', 'Enseignants', 'À propos'].map((link) => (
+              {['Home', 'Campus', 'Students', 'Teachers', 'About'].map((link) => (
                 <Typography
                   key={link}
                   variant="body2"
@@ -68,7 +68,7 @@ const Footer = () => {
             </Box>
           </Grid>
 
-          {/* Section Contact */}
+          {/* Contact Section */}
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
               Contact
@@ -89,16 +89,16 @@ const Footer = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <LocationOn sx={{ fontSize: 18, opacity: 0.8 }} />
                 <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                  Yaoundé, Cameroun
+                  Yaoundé, Cameroon
                 </Typography>
               </Box>
             </Box>
           </Grid>
 
-          {/* Section Réseaux sociaux */}
+          {/* Social Media Section */}
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
-              Suivez-nous
+              Follow Us
             </Typography>
             <Box sx={{ display: 'flex', gap: 1 }}>
               {[
@@ -126,7 +126,7 @@ const Footer = () => {
               ))}
             </Box>
             <Typography variant="body2" sx={{ opacity: 0.8, mt: 2, fontSize: '0.85rem' }}>
-              Restez connectés pour les dernières actualités et mises à jour.
+              Stay connected for the latest news and updates.
             </Typography>
           </Grid>
         </Grid>
@@ -145,10 +145,10 @@ const Footer = () => {
           }}
         >
           <Typography variant="body2" sx={{ opacity: 0.8, textAlign: 'center' }}>
-            © 2026 School Management App. Tous droits réservés.
+            © 2026 School Management App. All rights reserved.
           </Typography>
           <Box sx={{ display: 'flex', gap: 3 }}>
-            {['Confidentialité', 'Conditions', 'Cookies'].map((item) => (
+            {['Privacy', 'Terms', 'Cookies'].map((item) => (
               <Typography
                 key={item}
                 variant="body2"
@@ -166,7 +166,7 @@ const Footer = () => {
         </Box>
       </Container>
 
-      {/* Décoration */}
+      {/* Decoration */}
       <Box
         sx={{
           position: 'absolute',

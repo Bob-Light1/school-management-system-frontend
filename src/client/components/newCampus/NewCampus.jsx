@@ -24,6 +24,7 @@ import { useFormik } from 'formik';
 import { createCampusSchema } from '../../../yupSchema/createCampusSchema';
 import UploadCampusImage from '../../utility-components/uploadImage/UploadCampusImage';
 import axios from 'axios';
+import { API_BASE_URL } from '../../../config/env';
 
 export default function CampusForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -35,7 +36,7 @@ export default function CampusForm() {
     severity: 'success', // 'success' | 'error' | 'warning' | 'info'
   });
 
-  // useFormik
+  // useFormik hook for form management
   const formik = useFormik({
     initialValues: {
       campus_name: '',
@@ -62,7 +63,7 @@ export default function CampusForm() {
       try {
         console.log('Submit values:', values);
 
-        // Create FormData
+        // Create FormData for multipart/form-data request
         const fd = new FormData();
         fd.append('campus_name', values.campus_name);
         fd.append('manager_name', values.manager_name);
@@ -70,7 +71,7 @@ export default function CampusForm() {
         fd.append('password', values.password);
         fd.append('image', values.image, values.image.name);
 
-        // Send request
+        // Send POST request to create campus
         const response = await axios.post(
           `${API_BASE_URL}/campus/create`,
           fd,
@@ -83,7 +84,7 @@ export default function CampusForm() {
 
         console.log('Response:', response.data);
 
-        // Show success message
+        // Show success notification
         setSnackbar({
           open: true,
           message: 'Campus created successfully!',
@@ -96,13 +97,13 @@ export default function CampusForm() {
       } catch (error) {
         console.error('Submission error:', error);
 
-        // Extract error message
+        // Extract error message from response
         const errorMessage =
           error.response?.data?.message ||
           error.response?.data?.error ||
           'An error occurred while creating the campus';
 
-        // Show error message
+        // Show error notification
         setSnackbar({
           open: true,
           message: errorMessage,
@@ -130,30 +131,67 @@ export default function CampusForm() {
   };
 
   return (
-    <>
-      <Container
-        maxWidth="sm"
-        sx={{
-          minHeight: '75vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginTop: 4,
-        }}
-      >
+    <Box
+      sx={{
+        minHeight: '100vh',
+        width: '100%',
+        position: 'relative',
+        overflow: 'hidden',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        py: 4,
+
+        // Background pattern overlay with subtle bubbles/doodles
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          inset: 0,
+          backgroundImage: `url('sea.jpg')`,
+          opacity: 0.15, // Very subtle to not interfere with form
+          pointerEvents: 'none', // Allow clicking through to the form
+        }
+      }}
+    >
+      <Container maxWidth="sm">
         <Card
-          elevation={6}
+          elevation={0} // Remove default shadow
           sx={{
             width: '100%',
-            borderRadius: 4,
+            borderRadius: 6,
+            // Glassmorphism effect (frosted glass)
+            background: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
             px: { xs: 2, sm: 3 },
             py: 3,
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.3)',
+            animation: 'float 6s ease-in-out infinite',
+            '@keyframes float': {
+              '0%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-15px)' }, // Float up smoothly
+              '100%': { transform: 'translateY(0px)' },
+            }
           }}
         >
           <CardContent>
-            {/* Header */}
+            {/* Header with Institute Logo */}
             <Box sx={{ mb: 4, textAlign: 'center' }}>
-              <Typography variant="h5" fontWeight="bold">
+              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                <img 
+                  src="vite.svg" 
+                  alt="Logo" 
+                  style={{ 
+                    width: '80px', 
+                    height: '80px',
+                    objectFit: 'contain'
+                  }}
+                />
+              </Box>
+              <Typography variant="h5" fontWeight="900" sx={{ color: '#003366' }}>
                 Create Campus
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -164,7 +202,7 @@ export default function CampusForm() {
             {/* Form */}
             <Box component="form" onSubmit={formik.handleSubmit}>
               <Grid container spacing={2}>
-                {/* Campus name */}
+                {/* Campus name field */}
                 <Grid size={12}>
                   <FormControl
                     fullWidth
@@ -194,7 +232,7 @@ export default function CampusForm() {
                   </FormControl>
                 </Grid>
 
-                {/* Manager name */}
+                {/* Manager name field */}
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <FormControl
                     fullWidth
@@ -224,7 +262,7 @@ export default function CampusForm() {
                   </FormControl>
                 </Grid>
 
-                {/* Manager email */}
+                {/* Manager email field */}
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <FormControl
                     fullWidth
@@ -251,7 +289,7 @@ export default function CampusForm() {
                   </FormControl>
                 </Grid>
 
-                {/* Password */}
+                {/* Password field */}
                 <Grid size={12}>
                   <FormControl
                     fullWidth
@@ -286,7 +324,7 @@ export default function CampusForm() {
                   </FormControl>
                 </Grid>
 
-                {/* Confirm password */}
+                {/* Confirm password field */}
                 <Grid size={12}>
                   <FormControl
                     fullWidth
@@ -325,7 +363,7 @@ export default function CampusForm() {
                   </FormControl>
                 </Grid>
 
-                {/* Campus Image */}
+                {/* Campus Image Upload Component */}
                 <UploadCampusImage
                   key={imageResetKey}
                   onImageChange={handleImageChange}
@@ -342,15 +380,14 @@ export default function CampusForm() {
                     disabled={formik.isSubmitting || isLoading}
                     sx={{
                       mt: 2,
-                      py: 1.3,
-                      borderRadius: 2,
+                      py: 1.5,
+                      borderRadius: '12px',
                       fontWeight: 'bold',
-                      backgroundColor: '#4989c8',
+                      // Blue gradient matching the theme
+                      background: 'linear-gradient(45deg, #0077be 30%, #00a8cc 90%)',
+                      boxShadow: '0 4px 15px rgba(0, 119, 190, 0.4)',
                       '&:hover': {
-                        backgroundColor: '#3a6fa8',
-                      },
-                      '&:disabled': {
-                        backgroundColor: '#cccccc',
+                        background: 'linear-gradient(45deg, #005f99 30%, #008eb0 90%)',
                       },
                     }}
                   >
@@ -376,7 +413,7 @@ export default function CampusForm() {
         </Card>
       </Container>
 
-      {/* Snackbar Notification */}
+      {/* Snackbar Notification for success/error messages */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
@@ -392,6 +429,6 @@ export default function CampusForm() {
           {snackbar.message}
         </Alert>
       </Snackbar>
-    </>
+    </Box>
   );
 }
