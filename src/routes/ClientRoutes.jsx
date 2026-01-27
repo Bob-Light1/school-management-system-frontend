@@ -2,6 +2,8 @@ import { Route } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import Loader from '../components/Loader';
 import AllCampus from '../client/components/allCampus/AllCampus';
+import Contact from '../client/components/contact/Contact';
+import Admin from '../client/components/admin/Admin';
 
 // Lazy layouts & pages
 const Client = lazy(() => import('../client/Client'));
@@ -50,6 +52,24 @@ export const clientRoutes = (
         element={
           <Suspense fallback={<Loader />}>
             <AllCampus />
+          </Suspense>
+        }
+      />
+
+      <Route
+        path="contact"
+        element={
+          <Suspense fallback={<Loader />}>
+            <Contact />
+          </Suspense>
+        }
+      />
+
+      <Route
+        path="admin"
+        element={
+          <Suspense fallback={<Loader />}>
+            <Admin />
           </Suspense>
         }
       />

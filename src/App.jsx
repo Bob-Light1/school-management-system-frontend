@@ -44,7 +44,7 @@ function App() {
           {clientRoutes}
 
         {/* Campus Routes - protected */}
-        <Route element={<ProtectedRoute allowedRoles={['CAMPUS_MANAGER', 'DIRECTOR']} />}>
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'CAMPUS_MANAGER', 'DIRECTOR']} />}>
           <Route path="campus" element={<Campus />}>
             {campusRoutes}
           </Route>

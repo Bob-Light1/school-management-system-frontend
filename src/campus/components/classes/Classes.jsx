@@ -277,7 +277,13 @@ const Classes = () => {
               </Typography>
             </Paper>
           ) : (
-            classes.map((cls) => <MobileClassCard key={cls._id} cls={cls} edit={handleOpenEdit} del={handleDelete}/>)
+            classes.map((cls) => 
+              <MobileClassCard 
+                key={cls._id} 
+                cls={cls} 
+                edit={handleOpenEdit} 
+                del={handleDelete}
+              />)
           )}
         </Box>
       ) : (

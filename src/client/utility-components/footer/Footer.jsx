@@ -2,6 +2,14 @@ import { Box, Typography, Container, Grid, IconButton, Divider } from '@mui/mate
 import { School, Email, Phone, LocationOn, Facebook, Twitter, LinkedIn, Instagram } from '@mui/icons-material';
 import React from 'react';
 
+const NavMenus = [
+  { id:1, name:'Home', link:'#' },
+  { id:2, name:'Campus', link:'/allcampus' },
+  { id:3, name:'Login', link:'/login' },
+  { id:4, name:'About', link:'#' },
+  { id:5, name:'Admin', link:'/admin' },
+]
+
 const Footer = () => {
   return (
     <Box
@@ -11,7 +19,6 @@ const Footer = () => {
         color: 'white',
         pt: 6,
         pb: 3,
-        mt: 4,
         position: 'relative',
         overflow: 'hidden',
         '&::before': {
@@ -47,9 +54,9 @@ const Footer = () => {
               Quick Links
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {['Home', 'Campus', 'Students', 'Teachers', 'About'].map((link) => (
+              {NavMenus.map((nav) => (
                 <Typography
-                  key={link}
+                  key={nav.id}
                   variant="body2"
                   sx={{
                     opacity: 0.9,
@@ -62,7 +69,7 @@ const Footer = () => {
                     },
                   }}
                 >
-                  {link}
+                 <a href={nav.link}> {nav.name} </a>
                 </Typography>
               ))}
             </Box>

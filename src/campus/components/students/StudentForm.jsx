@@ -18,7 +18,7 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const fileInputRef = useRef(null);
   
-  const [campuses, setCampuses] = useState([]);
+  const [campus, setCampus] = useState([]);
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -43,22 +43,27 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
   // --- LOADING REFERENCES ---
   useEffect(() => {
     const fetchData = async () => {
+
       try {
-        const [resCampuses, resClasses] = await Promise.all([
-          axios.get(`${API_BASE_URL}/campus/all`, authHeader()),
+        const [resCampus, resClasses] = await Promise.all([
+          axios.get(`${API_BASE_URL}/campus/single`, authHeader()),
           axios.get(`${API_BASE_URL}/class`, authHeader()),
         ]);
         
-        setCampuses(resCampuses.data.allCampus || []);
+        setCampus(resCampus.data.data || []);
         setClasses(resClasses.data.data || []);
+
       } catch (err) {
         console.error("Error loading lists", err);
         showSnackbar('Failed to load form data', 'error');
+
       } finally {
         setLoading(false);
       }
     };
+
     fetchData();
+
   }, []);
 
   // --- FORMIK CONFIGURATION ---
@@ -67,19 +72,23 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
       firstName: initialData?.firstName || '',
       lastName: initialData?.lastName || '',
       email: initialData?.email || '',
+      schoolCampus: initialData?.schoolCampus?._id || '',
       username: initialData?.username || '',
       phone: initialData?.phone || '',
       gender: initialData?.gender || 'male',
-      schoolCampus: initialData?.schoolCampus?._id || '',
       studentClass: initialData?.studentClass?._id || '',
       password: '',
+      profileImage: null,
     },
+
     validationSchema: createStudentSchema(isEdit),
     validateOnChange: true,
     validateOnBlur: true,
 
     onSubmit: async (values) => {
+
       setSubmitting(true);
+
       try {
         const formData = new FormData();
         
@@ -91,8 +100,11 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
         });
 
         // Append image if selected
-        if (imageFile) {
-          formData.append('profileImage', imageFile);
+        if (values.profileImage) { 
+          formData.append(
+            'profileImage ', 
+            values.profileImage, 
+            values.profileImage.name);
         }
 
         if (isEdit) {
@@ -107,6 +119,7 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
             }
           );
           onSuccess?.('Student updated successfully');
+          
         } else {
           await axios.post(
             `${API_BASE_URL}/student`, 
@@ -119,6 +132,9 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
             }
           );
           onSuccess?.('Student created successfully');
+
+          formik.resetForm();
+          setImageResetKey((prev) => prev + 1);
         }
       } catch (err) {
         const errorMessage = err.response?.data?.message || "An error occurred";
@@ -129,15 +145,12 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
     },
   });
 
-  // Auto-select campus when class is selected
   useEffect(() => {
-    if (formik.values.studentClass && classes.length > 0) {
-      const selectedClass = classes.find(cls => cls._id === formik.values.studentClass);
-      if (selectedClass?.campus) {
-        formik.setFieldValue('schoolCampus', selectedClass.campus);
-      }
+    if (!isEdit && campus?._id) {
+      formik.setFieldValue('schoolCampus', campus._id, true)
     }
-  }, [formik.values.studentClass, classes]);
+  }, [campus, isEdit]);
+
 
   // Handle image selection
   const handleImageChange = (event) => {
@@ -519,19 +532,14 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
 
           <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
-              fullWidth 
-              select 
-              name="schoolCampus" 
+              fullWidth
               label="Campus"
-              value={formik.values.schoolCampus} 
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              error={formik.touched.schoolCampus && Boolean(formik.errors.schoolCampus)}
-              helperText={formik.touched.schoolCampus && formik.errors.schoolCampus || "Auto-selected based on class"}
-              disabled={Boolean(formik.values.studentClass)}
+              value={campus?.campus_name || ''}
+              disabled
               slotProps={{
                 input: {
                   id: 'schoolCampus',
+                  readOnly:true,
                   startAdornment: (
                     <InputAdornment position="start">
                       <Domain fontSize="small" color="action" />
@@ -545,15 +553,9 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
                   borderRadius: 2,
                 }
               }}
-            >
-              {(Array.isArray(campuses) ? campuses : []).map((camp) => (
-                <MenuItem key={camp._id} value={camp._id}>
-                  {camp.campus_name}
-                </MenuItem>
-              ))}
-            </TextField>
+            />
           </Grid>
-
+          <pre>{JSON.stringify(formik.errors, null, 2)}</pre>
           {/* ACTION BUTTONS */}
           <Grid size={{ xs: 12 }} sx={{ mt: 3 }}>
             <Stack 

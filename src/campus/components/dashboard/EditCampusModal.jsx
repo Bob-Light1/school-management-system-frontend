@@ -36,12 +36,14 @@ export default function EditCampusModal({ open, handleClose, campusData, onUpdat
       email: campusData?.email || '',
       image: null,
     },
+    
     enableReinitialize: true,
     validationSchema: Yup.object({
       campus_name: Yup.string().required('Required'),
       manager_name: Yup.string().required('Required'),
       email: Yup.string().email('Invalid email').required('Required'),
     }),
+
     onSubmit: async (values) => {
       setLoading(true);
       try {

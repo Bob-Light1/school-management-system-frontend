@@ -18,18 +18,25 @@ const pages = [
   {link:"/newcampus", component:"Create"},
 ]
 
+
 function Navbar() {
+  const navigate = useNavigate();
   const [anchorElNav, setAnchorElNav] = React.useState(null);
 
   const handleOpenNavMenu = (event) => {
     setAnchorElNav(event.currentTarget);
   };
 
-  const navigate = useNavigate()
-  const handleCloseNavMenu = (link) => {
+  const handleMenuItemClick = (link) => {
     setAnchorElNav(null);
-    navigate(link)
+    navigate(link);
   };
+
+  const handleCloseNavMenu = () => {
+    setAnchorElNav(null);
+  };
+
+  
 
   return (
     <AppBar 
@@ -93,7 +100,7 @@ function Navbar() {
               {pages.map((page, i) => (
                 <MenuItem 
                   key={i} 
-                  onClick={() => {handleCloseNavMenu(page.link)}}
+                  onClick={() => {handleMenuItemClick(page.link)}}
                 >
                   <Typography sx={{ textAlign: 'center' }}>
                     {page.component}
@@ -125,7 +132,7 @@ function Navbar() {
             {pages.map((page, i) => (
               <Button
                 key={i}
-                onClick={() => {handleCloseNavMenu(page.link)}}
+                onClick={() => {handleMenuItemClick(page.link)}}
                 sx={{ my: 2, color: 'white', display: 'block' }}
               >
                 {page.component}
@@ -138,3 +145,8 @@ function Navbar() {
   );
 }
 export default Navbar;
+
+
+
+
+

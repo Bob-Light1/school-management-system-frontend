@@ -19,7 +19,7 @@
   position: absolute;
   border-radius: 50%;
   animation: floatBubble linear infinite;
-  opacity: 0.9;
+  opacity: 0.6;
 }
 
 /* Variantes */
@@ -29,7 +29,7 @@
   background: rgba(182, 216, 250, 0.35);
   top: -80px;
   left: -80px;
-  animation-duration: 28s;
+  animation-duration: 58s;
 }
 
 .b2 {
@@ -38,7 +38,7 @@
   background: rgba(140, 203, 230, 0.25);
   bottom: -120px;
   right: -100px;
-  animation-duration: 36s;
+  animation-duration: 56s;
 }
 
 .b3 {
@@ -47,7 +47,7 @@
   background: rgba(255, 255, 255, 0.479);
   top: 30%;
   left: 70%;
-  animation-duration: 22s;
+  animation-duration: 52s;
 }
 
 .b4 {
@@ -56,7 +56,7 @@
   background: rgba(181, 183, 185, 0.2);
   top: 70%;
   left: 10%;
-  animation-duration: 30s;
+  animation-duration: 50s;
 }
 
 /* Animation douce */

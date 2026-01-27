@@ -47,11 +47,13 @@ export default function AllCampus() {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         });
         const resp = await response.json();
-        setCampuses(resp.Allcampus || []);
+        
+        setCampuses(resp.allCampus || []);
       } catch (error) { 
         console.error('❌ Error:', error); 
       }
     };
+
     fetchCampus();
   }, []);
 
@@ -60,6 +62,14 @@ export default function AllCampus() {
     campus.manager_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const formatLocation = (location) => {
+    if (!location || typeof location !== 'object') return 'International Hub';
+    
+    const { city, country } = location;
+    if (!city && !country) return 'International Hub';
+    if (city && country) return `${city}, ${country}`;
+    return city || country;
+  };
 
   return (
     <Box sx={{ 
@@ -624,10 +634,10 @@ export default function AllCampus() {
                       color: '#ff7f3e'
                     },
                     { 
-                      icon: <LocationOnIcon />, 
-                      label: 'Location', 
-                      value: selectedCampus?.location || 'International Hub',
-                      color: '#ffda78'
+                        icon: <LocationOnIcon />, 
+                        label: 'Location', 
+                        value: formatLocation(selectedCampus?.location),
+                        color: '#ffda78'
                     }
                   ].map((item, i) => (
                     <MotionDiv
