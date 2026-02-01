@@ -5,9 +5,14 @@ export const AuthContext = createContext(undefined);
 
 // User type to endpoint mapping
 const USER_TYPE_ENDPOINTS = {
-  admin: '/admin/login',
-  student: '/student/login',
+  admin: '/campus/login',
+  director: '/director/login',
+  manager: '/campus/login',
   teacher: '/teacher/login',
+  student: '/student/login',
+  parent: '/parent/login',
+  mentor: '/mentor/login',
+  partner: '/partner/login',
 };
 
 export function AuthProvider({ children }) {
@@ -20,7 +25,7 @@ export function AuthProvider({ children }) {
    * @param {string} userType - 'admin', 'student', 'teacher', ...
    */
 
-  const login = async (credentials, userType = 'admin') => {
+  const login = async (credentials, userType = 'manager') => {
     try {
       // Get the appropriate endpoint for user type
       const endpoint = USER_TYPE_ENDPOINTS[userType];

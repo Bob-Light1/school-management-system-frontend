@@ -16,10 +16,10 @@ import {
   Delete as DeleteIcon,
   School as SchoolIcon,
   Groups as GroupsIcon,
-
+  Restore as RestoreIcon,
 } from '@mui/icons-material';
 
-const MobileClassCard = ({ cls, edit, del }) => (
+const MobileClassCard = ({ cls, edit, archive, restore }) => (
   <Card 
     sx={{ 
       mb: 2, 
@@ -93,15 +93,28 @@ const MobileClassCard = ({ cls, edit, del }) => (
           >
             Edit
           </Button>
-          <Button
-            size="small"
-            variant="outlined"
-            color="error"
-            startIcon={<DeleteIcon />}
-            onClick={() => del(cls._id)}
-          >
-            Archive
-          </Button>
+          {cls.status === 'active' ? (
+            <Button
+              size="small"
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteIcon />}
+              onClick={() => archive(cls._id)}
+            >
+              Archive
+            </Button>
+          ) : (
+            <Button
+              size="small"
+              variant="outlined"
+              color="success"
+              startIcon={<RestoreIcon />}
+              onClick={() => restore(cls._id)}
+            >
+              Restore
+            </Button>
+          )}
+          
         </Stack>
       </Stack>
     </CardContent>

@@ -14,6 +14,7 @@ import PhoneIcon from '@mui/icons-material/Phone';
 import SchoolIcon from '@mui/icons-material/School';
 import GroupsIcon from '@mui/icons-material/Groups';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 import { API_BASE_URL } from '../../../config/env';
 import { IMAGE_BASE_URL } from '../../../config/env';
@@ -30,6 +31,9 @@ export default function AllCampus() {
   const [campuses, setCampuses] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
 
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const handleOpen = (campus) => { 
     setSelectedCampus(campus); 
     setOpen(true); 
@@ -42,13 +46,15 @@ export default function AllCampus() {
 
   useEffect(() => {
     const fetchCampus = async () => {
+
       try {
         const response = await fetch(`${API_BASE_URL}/campus/all`, {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         });
+
         const resp = await response.json();
-        
-        setCampuses(resp.allCampus || []);
+
+        setCampuses(resp.data || []);
       } catch (error) { 
         console.error('❌ Error:', error); 
       }
@@ -59,14 +65,27 @@ export default function AllCampus() {
 
   const filteredCampuses = campuses.filter(campus =>
     campus.campus_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    campus.manager_name?.toLowerCase().includes(searchQuery.toLowerCase())
+    campus.manager_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    campus._id?.includes(searchQuery)
   );
 
+  const handleVisitCampus = (campusId) => {
+    const token = localStorage.getItem('token');
+    const destination = `/campus/${campusId}`;
+  
+    if (!token) {
+      navigate('/login', { state: { from: destination } });
+      return;
+    }
+  
+    navigate(destination);
+  };
+
   const formatLocation = (location) => {
-    if (!location || typeof location !== 'object') return 'International Hub';
+    if (!location || typeof location !== 'object') return 'International School';
     
     const { city, country } = location;
-    if (!city && !country) return 'International Hub';
+    if (!city && !country) return 'International School';
     if (city && country) return `${city}, ${country}`;
     return city || country;
   };
@@ -313,11 +332,17 @@ export default function AllCampus() {
                   >
                     <CardMedia
                       component="img"
-                      image={`${IMAGE_BASE_URL}${campus.campus_image}`}
+                      image={campus.campus_image 
+                        ? `${IMAGE_BASE_URL}${campus.campus_image}` 
+                        : 'images/hotel.jpg'}
                       alt={campus.campus_name}
                       sx={{ 
                         height: '100%',
                         objectFit: 'cover'
+                      }}
+                      // Optionnel : Gérer l'erreur si le lien est mort
+                      onError={(e) => {
+                        e.target.src = 'images/hotel.jpg';
                       }}
                     />
                   </MotionDiv>
@@ -351,7 +376,7 @@ export default function AllCampus() {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <LocationOnIcon sx={{ fontSize: 16, color: '#ffda78' }} />
                         <Typography variant="body2" sx={{ color: '#ffda78', fontWeight: 500 }}>
-                          International Hub
+                          {campus.location.city || "Cameroon"} - {campus.location.address || "Yaounde"}
                         </Typography>
                       </Box>
                     </MotionDiv>
@@ -624,13 +649,13 @@ export default function AllCampus() {
                     { 
                       icon: <EmailIcon />, 
                       label: 'Contact Email', 
-                      value: selectedCampus?.email || 'contact@campus.com',
+                      value: selectedCampus?.email || 'boblagno6@gmail.com',
                       color: '#4989c8'
                     },
                     { 
                       icon: <PhoneIcon />, 
                       label: 'Phone Number', 
-                      value: selectedCampus?.phone || '+1 (555) 123-4567',
+                      value: selectedCampus?.manager_phone || '(+237) 674 20 73 81',
                       color: '#ff7f3e'
                     },
                     { 
@@ -699,6 +724,7 @@ export default function AllCampus() {
                     <Button
                       fullWidth
                       variant="contained"
+                      onClick={() => handleVisitCampus(selectedCampus?._id)}
                       sx={{
                         background: 'linear-gradient(135deg, #2a629a 0%, #4989c8 100%)',
                         borderRadius: 3,

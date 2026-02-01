@@ -12,8 +12,10 @@ import { useFormik } from 'formik';
 import axios from 'axios';
 import { createStudentSchema } from '../../../yupSchema/createStudentSchema';
 import { API_BASE_URL } from '../../../config/env';
+import { useParams } from 'react-router-dom';
 
 const StudentForm = ({ initialData, onSuccess, onCancel }) => {
+  const { campusId } = useParams();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const fileInputRef = useRef(null);
@@ -23,7 +25,6 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [imagePreview, setImagePreview] = useState(initialData?.profileImage || null);
-  const [imageFile, setImageFile] = useState(null);
   const isEdit = !!initialData;
 
   const [snackbar, setSnackbar] = useState({
@@ -40,13 +41,12 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
     headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
   });
 
-  // --- LOADING REFERENCES ---
+  // Load reference data (campus, classes)
   useEffect(() => {
     const fetchData = async () => {
-
       try {
         const [resCampus, resClasses] = await Promise.all([
-          axios.get(`${API_BASE_URL}/campus/single`, authHeader()),
+          axios.get(`${API_BASE_URL}/campus/${campusId}`, authHeader()),
           axios.get(`${API_BASE_URL}/class`, authHeader()),
         ]);
         
@@ -54,19 +54,17 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
         setClasses(resClasses.data.data || []);
 
       } catch (err) {
-        console.error("Error loading lists", err);
+        console.error('Error loading form data:', err);
         showSnackbar('Failed to load form data', 'error');
-
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
+  }, [campusId]);
 
-  }, []);
-
-  // --- FORMIK CONFIGURATION ---
+  // Formik configuration
   const formik = useFormik({
     initialValues: {
       firstName: initialData?.firstName || '',
@@ -78,7 +76,8 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
       gender: initialData?.gender || 'male',
       studentClass: initialData?.studentClass?._id || '',
       password: '',
-      profileImage: null,
+      dateOfBirth: initialData?.dateOfBirth ? initialData.dateOfBirth.split('T')[0] : '',
+      profileImage: null, // File object
     },
 
     validationSchema: createStudentSchema(isEdit),
@@ -86,7 +85,6 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
     validateOnBlur: true,
 
     onSubmit: async (values) => {
-
       setSubmitting(true);
 
       try {
@@ -94,94 +92,91 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
         
         // Append all form values
         Object.keys(values).forEach(key => {
-          if (values[key] !== null && values[key] !== '') {
+          if (key === 'profileImage') {
+            // Handle file separately
+            if (values.profileImage instanceof File) {
+              formData.append('profileImage', values.profileImage);
+            }
+          } else if (values[key] !== null && values[key] !== '') {
+            if (isEdit && key === 'password' && !values[key]) return;
             formData.append(key, values[key]);
           }
         });
 
-        // Append image if selected
-        if (values.profileImage) { 
-          formData.append(
-            'profileImage ', 
-            values.profileImage, 
-            values.profileImage.name);
-        }
+        const config = {
+          headers: { 
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        };
 
         if (isEdit) {
           await axios.patch(
             `${API_BASE_URL}/student/${initialData._id}`, 
             formData,
-            {
-              headers: { 
-                Authorization: `Bearer ${localStorage.getItem('token')}`,
-                'Content-Type': 'multipart/form-data'
-              }
-            }
+            config
           );
           onSuccess?.('Student updated successfully');
-          
         } else {
           await axios.post(
             `${API_BASE_URL}/student`, 
             formData,
-            {
-              headers: { 
-                Authorization: `Bearer ${localStorage.getItem('token')}`,
-                'Content-Type': 'multipart/form-data'
-              }
-            }
+            config
           );
           onSuccess?.('Student created successfully');
-
+          
+          // Reset form after successful creation
           formik.resetForm();
-          setImageResetKey((prev) => prev + 1);
+          setImagePreview(null);
         }
       } catch (err) {
-        const errorMessage = err.response?.data?.message || "An error occurred";
+        const errorMessage = err.response?.data?.message || 'An error occurred';
         showSnackbar(errorMessage, 'error');
+        console.error('Submit error:', err);
       } finally {
         setSubmitting(false);
       }
     },
   });
 
+  // Auto-set campus for non-edit mode
   useEffect(() => {
     if (!isEdit && campus?._id) {
-      formik.setFieldValue('schoolCampus', campus._id, true)
+      formik.setFieldValue('schoolCampus', campus._id, true);
     }
   }, [campus, isEdit]);
-
 
   // Handle image selection
   const handleImageChange = (event) => {
     const file = event.target.files[0];
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        showSnackbar('Please select a valid image file', 'error');
-        return;
-      }
-      
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        showSnackbar('Image size should not exceed 5MB', 'error');
-        return;
-      }
+    if (!file) return;
 
-      setImageFile(file);
-      
-      // Create preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      showSnackbar('Please select a valid image file', 'error');
+      return;
     }
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      showSnackbar('Image size should not exceed 5MB', 'error');
+      return;
+    }
+
+    // Update Formik state
+    formik.setFieldValue('profileImage', file);
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleRemoveImage = () => {
-    setImageFile(null);
-    setImagePreview(null);
+    formik.setFieldValue('profileImage', null);
+    setImagePreview(initialData?.profileImage || null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -266,7 +261,7 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
                 </Button>
                 
                 <Typography variant="caption" color="text.secondary">
-                  Recommended: Square image, max 5MB (JPG, PNG)
+                  Recommended: Square image, max 5MB (JPG, PNG, WEBP)
                 </Typography>
               </Stack>
             </Paper>
@@ -299,13 +294,11 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
                     </InputAdornment> 
                   ),
                 },
-                inputLabel: { htmlFor: 'firstName' },
+                inputLabel: {
+                  htmlFor: 'firstName',
+                },
               }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
-                }
-              }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
             />
           </Grid>
 
@@ -320,14 +313,10 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
               error={formik.touched.lastName && Boolean(formik.errors.lastName)}
               helperText={formik.touched.lastName && formik.errors.lastName}
               slotProps={{
-                input: { id: 'lastName' },
+                input: {id: 'lastName'},
                 inputLabel: { htmlFor: 'lastName' },
               }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
-                }
-              }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
             />
           </Grid>
 
@@ -343,20 +332,18 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
               helperText={formik.touched.username && formik.errors.username}
               slotProps={{
                 input: {
-                  id: 'username',
+                  id: 'userName',
                   startAdornment: (
                     <InputAdornment position="start">
                       <Badge fontSize="small" color="action" />
                     </InputAdornment> 
                   ),
                 },
-                inputLabel: { htmlFor: 'username' },
+                inputLabel: {
+                  htmlFor: 'userName',
+                },
               }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
-                }
-              }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
             />
           </Grid>
 
@@ -370,19 +357,42 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
               slotProps={{
-                input: { id: 'gender' },
-                inputLabel: { htmlFor: 'gender' },
+                input: { id: 'gender'},
+                inputLabel: { htmlFor: 'gender'},
               }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
-                }
-              }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
             >
               <MenuItem value="male">Male</MenuItem>
               <MenuItem value="female">Female</MenuItem>
               <MenuItem value="other">Other</MenuItem>
             </TextField>
+          </Grid>
+
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField
+              fullWidth
+              name="dateOfBirth"
+              label="Date of Birth"
+              type="date"
+              {...formik.getFieldProps('dateOfBirth')}
+              error={formik.touched.dateOfBirth && !!formik.errors.dateOfBirth}
+              helperText={formik.touched.dateOfBirth && formik.errors.dateOfBirth}
+              slotProps={{
+                input: {
+                  id: 'dateOfBirth', 
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Badge fontSize="small" color="action" /> 
+                    </InputAdornment>
+                  ),
+                },
+                inputLabel: {
+                  shrink: true,
+                  htmlFor: 'dateOfBirth'
+                },
+              }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+            />
           </Grid>
 
           {/* CONTACT & SECURITY SECTION */}
@@ -406,20 +416,18 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
               helperText={formik.touched.email && formik.errors.email}
               slotProps={{
                 input: {
-                  id: 'email',
+                  id: 'email', 
                   startAdornment: (
                     <InputAdornment position="start">
                       <Email fontSize="small" color="action" />
                     </InputAdornment> 
                   ),
                 },
-                inputLabel: { htmlFor: 'email' },
+                inputLabel: {
+                  htmlFor: 'email'
+                },
               }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
-                }
-              }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
             />
           </Grid>
 
@@ -442,16 +450,15 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
                     </InputAdornment> 
                   ),
                 },
-                inputLabel: { htmlFor: 'phone' },
+                inputLabel: {
+                  htmlFor: 'phone',
+                },
               }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
-                }
-              }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
             />
           </Grid>
 
+          {/* Password field - only for creation */}
           <Collapse in={!isEdit} sx={{ width: '100%' }}>
             <Grid container spacing={3} sx={{ pl: 3, pr: 3 }}>
               <Grid size={{ xs: 12 }}>
@@ -467,20 +474,14 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
                   helperText={formik.touched.password && formik.errors.password}
                   slotProps={{
                     input: {
-                      id: 'password',
                       startAdornment: (
                         <InputAdornment position="start">
                           <Lock fontSize="small" color="action" />
                         </InputAdornment> 
                       ),
                     },
-                    inputLabel: { htmlFor: 'password' },
                   }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 2,
-                    }
-                  }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
               </Grid>
             </Grid>
@@ -510,17 +511,15 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
                   id: 'studentClass',
                   startAdornment: (
                     <InputAdornment position="start">
-                      <School fontSize="small" color="action" />
-                    </InputAdornment> 
+                    <School fontSize="small" color="action" />
+                  </InputAdornment> 
                   ),
                 },
-                inputLabel: { htmlFor: 'studentClass' },
+                inputLabel: {
+                  htmlFor: 'studentClass',
+                },
               }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
-                }
-              }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
             >
               {(Array.isArray(classes) ? classes : []).map((cls) => (
                 <MenuItem key={cls._id} value={cls._id}>
@@ -538,24 +537,18 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
               disabled
               slotProps={{
                 input: {
-                  id: 'schoolCampus',
-                  readOnly:true,
+                  readOnly: true,
                   startAdornment: (
                     <InputAdornment position="start">
                       <Domain fontSize="small" color="action" />
                     </InputAdornment> 
                   ),
                 },
-                inputLabel: { htmlFor: 'schoolCampus' },
               }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
-                }
-              }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
             />
           </Grid>
-          <pre>{JSON.stringify(formik.errors, null, 2)}</pre>
+
           {/* ACTION BUTTONS */}
           <Grid size={{ xs: 12 }} sx={{ mt: 3 }}>
             <Stack 

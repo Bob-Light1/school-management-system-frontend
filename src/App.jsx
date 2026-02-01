@@ -9,6 +9,7 @@ import { studentRoutes } from './routes/StudentRoutes';
 import { clientRoutes } from './routes/ClientRoutes';
 import { teacherRoutes } from './routes/TeacherRoutes';
 import { lazy } from 'react';
+import { adminRoutes } from './routes/AdminRoutes';
 
 
 const Campus = lazy(() => import('../src/campus/Campus'));
@@ -43,9 +44,13 @@ function App() {
         {/* CLient Routes - public */}
           {clientRoutes}
 
+        {/* Admin Login Routes - public */}
+         {adminRoutes}
+
+
         {/* Campus Routes - protected */}
         <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'CAMPUS_MANAGER', 'DIRECTOR']} />}>
-          <Route path="campus" element={<Campus />}>
+          <Route path="campus/:campusId" element={<Campus />}>
             {campusRoutes}
           </Route>
         </Route>

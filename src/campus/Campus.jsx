@@ -16,7 +16,7 @@ import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useParams } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
 import { Suspense } from 'react';
 import Loader from '../components/Loader';
@@ -120,13 +120,15 @@ const Drawer = styled(MuiDrawer, { shouldForwardProp: (prop) => prop !== 'open' 
   }),
 );
 
+
 export default function Campus() {
-  const theme = useTheme();
-  const location = useLocation();
-  const [open, setOpen] = React.useState(false);
+  const { campusId } = useParams();
   const { user, logout } = useAuth();
+  const [open, setOpen] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState(null);
   const openMenu = Boolean(anchorEl);
+  const theme = useTheme();
+  const location = useLocation();
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -152,20 +154,19 @@ export default function Campus() {
   const fullImageUrl = user?.image_url
   ? `${IMAGE_BASE_URL}${user.image_url}?t=${new Date().getTime()}` 
   : null;
- 
 
   const navArray = [
     { link: "/", component: "Home", icon: HomeIcon },
-    { link: "/campus/dashboard", component: "Dashboard", icon: DashboardCustomizeIcon },
-    { link: "/campus/students", component: "Students", icon: GroupIcon },
-    { link: "/campus/teachers", component: "Teachers", icon: RecordVoiceOverIcon },
-    { link: "/campus/parents", component: "Parents", icon: FamilyRestroomIcon },
-    { link: "/campus/classes", component: "Classes", icon: LibraryBooksIcon },
-    { link: "/campus/subjects", component: "Subjects", icon: SubjectIcon },
-    { link: "/campus/examination", component: "Examination", icon: ExplicitIcon },
-    { link: "/campus/schedule", component: "Schedule", icon: EventNoteIcon },
-    { link: "/campus/attendance", component: "Attendance", icon: ChecklistRtlIcon },
-    { link: "/campus/notification", component: "Notification", icon: NotificationsActiveIcon },
+    { link: `/campus/${campusId}/dashboard`, component: "Dashboard", icon: DashboardCustomizeIcon },
+    { link: `/campus/${campusId}/students`, component: "Students", icon: GroupIcon },
+    { link: `/campus/${campusId}/teachers`, component: "Teachers", icon: RecordVoiceOverIcon },
+    { link: `/campus/${campusId}/parents`, component: "Parents", icon: FamilyRestroomIcon },
+    { link: `/campus/${campusId}/classes`, component: "Classes", icon: LibraryBooksIcon },
+    { link: `/campus/${campusId}/subjects`, component: "Subjects", icon: SubjectIcon },
+    { link: `/campus/${campusId}/examination`, component: "Examination", icon: ExplicitIcon },
+    { link: `/campus/${campusId}/schedule`, component: "Schedule", icon: EventNoteIcon },
+    { link: `/campus/${campusId}/attendance`, component: "Attendance", icon: ChecklistRtlIcon },
+    { link: `/campus/${campusId}/notification`, component: "Notification", icon: NotificationsActiveIcon },
   ];
 
   const navigate = useNavigate();

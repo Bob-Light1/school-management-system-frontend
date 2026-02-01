@@ -19,9 +19,6 @@ import {
 } from '@mui/icons-material';
 
 
-
-
-
 const MobileSubjectCard = ({ subject, edit, archive, restore }) => (
   
   <Card

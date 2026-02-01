@@ -103,7 +103,7 @@ export const createStudentSchema = (isEdit = false) => {
           const today = new Date();
           const birthDate = new Date(value);
           const age = today.getFullYear() - birthDate.getFullYear();
-          return age >= 3;
+          return age >= 10;
         }
       )
       .test(
@@ -114,7 +114,7 @@ export const createStudentSchema = (isEdit = false) => {
           const today = new Date();
           const birthDate = new Date(value);
           const age = today.getFullYear() - birthDate.getFullYear();
-          return age <= 100;
+          return age <= 80;
         }
       )
       .nullable(),

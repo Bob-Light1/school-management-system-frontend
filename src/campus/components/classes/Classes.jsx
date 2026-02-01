@@ -21,7 +21,6 @@ import {
   Tooltip,
   InputAdornment,
   Skeleton,
-  Divider,
   Alert,
   CircularProgress,
   Snackbar,
@@ -29,7 +28,8 @@ import {
   useMediaQuery,
   Card,
   CardContent,
-  Grid,
+  FormControlLabel,
+  Switch,
 } from '@mui/material';
 
 import {
@@ -44,25 +44,29 @@ import {
   CheckCircle as SuccessIcon,
   Error as ErrorIcon,
   Warning as WarningIcon,
+  Restore as RestoreIcon,
 } from '@mui/icons-material';
 
-import { Formik, Form} from 'formik';
+import { Formik, Form } from 'formik';
 import { createClassSchema } from '../../../yupSchema/createClassSchema';
 import { API_BASE_URL } from '../../../config/env';
 import axios from 'axios';
 import ManageLevel from '../levels/ManageLevel';
 import MobileClassCard from './MobileClassCard';
+import { useParams } from 'react-router-dom';
 
 const Classes = () => {
   const theme = useTheme();
+  const { campusId } = useParams();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isTablet = useMediaQuery(theme.breakpoints.down('lg'));
 
   const [classes, setClasses] = useState([]);
-  const [campuses, setCampuses] = useState([]);
+  const [campus, setCampus] = useState(null); // Single campus object
   const [levels, setLevels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openLevels, setOpenLevels] = useState(false);
+  const [includeArchived, setIncludeArchived] = useState(false);
 
   const [open, setOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState(null);
@@ -71,7 +75,7 @@ const Classes = () => {
   const [notification, setNotification] = useState({
     open: false,
     message: '',
-    severity: 'success', // 'success' | 'error' | 'warning' | 'info'
+    severity: 'success',
   });
 
   const isEditMode = Boolean(selectedClass);
@@ -94,19 +98,30 @@ const Classes = () => {
   };
 
   const fetchData = async () => {
+    // Validate campusId before fetching
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(campusId);
+    if (!campusId || !isMongoId) {
+      console.warn('Invalid campusId:', campusId);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     try {
+      //Fetch classes for specific campus instead of all classes
+      const classUrl = `${API_BASE_URL}/class/campus/${campusId}?includeArchived=${includeArchived}`;
+
       const [clsRes, campRes, lvlRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/class`, getAuthHeader()),
-        axios.get(`${API_BASE_URL}/campus/all`, getAuthHeader()),
+        axios.get(classUrl, getAuthHeader()),
+        axios.get(`${API_BASE_URL}/campus/${campusId}`, getAuthHeader()),
         axios.get(`${API_BASE_URL}/level`, getAuthHeader()),
       ]);
 
       setClasses(clsRes.data?.data || []);
-      setCampuses(campRes.data?.allCampus || []);
+      setCampus(campRes.data?.data || null);
       setLevels(lvlRes.data?.data || []);
-
+      
     } catch (err) {
       console.error('Error loading data:', err);
       showNotification(
@@ -121,7 +136,7 @@ const Classes = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [campusId, includeArchived]);
 
   const handleSubmit = async (values, { resetForm, setSubmitting }) => {
     try {
@@ -152,7 +167,8 @@ const Classes = () => {
     }
   };
 
-  const handleDelete = async (id) => {
+  /* ----------------SOFT DELETE / RESTORE ---------------- */
+  const handleArchive = async (id) => {
     if (!window.confirm('Do you really want to archive this class?')) return;
 
     try {
@@ -162,6 +178,21 @@ const Classes = () => {
     } catch (error) {
       showNotification('Unable to archive the class', 'error');
       console.error(error);
+    }
+  };
+
+  const handleRestore = async (id) => {
+    try {
+      await axios.patch(
+        `${API_BASE_URL}/class/${id}/restore`,
+        {},
+        getAuthHeader()
+      );
+      showNotification('Class restored successfully', 'success');
+      await fetchData();
+    } catch (e) {
+      showNotification('Failed to restore class', 'error');
+      console.error(e);
     }
   };
 
@@ -220,6 +251,17 @@ const Classes = () => {
           spacing={2}
           width={{ xs: '100%', sm: 'auto' }}
         >
+           <FormControlLabel
+            control={
+              <Switch 
+                checked={includeArchived} 
+                onChange={(e) => setIncludeArchived(e.target.checked)} 
+                color="secondary"
+              />
+            }
+            label={<Typography variant="body2" sx={{ fontWeight: 500 }}>Show Archived</Typography>}
+            sx={{ mr: { md: 2 } }}
+          />
           <Button
             variant="contained"
             color="primary"
@@ -282,8 +324,10 @@ const Classes = () => {
                 key={cls._id} 
                 cls={cls} 
                 edit={handleOpenEdit} 
-                del={handleDelete}
-              />)
+                archive={handleArchive}
+                restore={handleRestore}
+              />
+            )
           )}
         </Box>
       ) : (
@@ -303,7 +347,6 @@ const Classes = () => {
             <TableHead sx={{ bgcolor: 'grey.100' }}>
               <TableRow>
                 <TableCell>Class</TableCell>
-                <TableCell>Campus</TableCell>
                 <TableCell>Level</TableCell>
                 <TableCell>Capacity</TableCell>
                 <TableCell>Status</TableCell>
@@ -315,14 +358,14 @@ const Classes = () => {
               {loading ? (
                 [...Array(5)].map((_, i) => (
                   <TableRow key={i}>
-                    <TableCell colSpan={6}>
+                    <TableCell colSpan={5}>
                       <Skeleton height={48} animation="wave" />
                     </TableCell>
                   </TableRow>
                 ))
               ) : isEmpty ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={5} align="center" sx={{ py: 8 }}>
                     <SchoolIcon sx={{ fontSize: 64, color: 'grey.300', mb: 2 }} />
                     <Typography variant="subtitle1" color="text.secondary">
                       No classes registered at the moment
@@ -338,8 +381,6 @@ const Classes = () => {
                         <Typography fontWeight={600}>{cls.className || '—'}</Typography>
                       </Stack>
                     </TableCell>
-
-                    <TableCell>{cls.schoolCampus?.campus_name || 'N/A'}</TableCell>
 
                     <TableCell>
                       <Chip
@@ -365,7 +406,7 @@ const Classes = () => {
                         sx={{ textTransform: 'capitalize' }}
                       />
                     </TableCell>
-
+                  
                     <TableCell align="right">
                       <Tooltip title="Edit">
                         <IconButton
@@ -377,15 +418,27 @@ const Classes = () => {
                         </IconButton>
                       </Tooltip>
 
-                      <Tooltip title="Archive">
+                      {cls.status === 'active' ? (
+                        <Tooltip title="Archive">
                         <IconButton
                           color="error"
                           size="small"
-                          onClick={() => handleDelete(cls._id)}
+                          onClick={() => handleArchive(cls._id)}
                         >
                           <DeleteIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
+                      ): (
+                        <Tooltip title="Restore">
+                        <IconButton
+                          color="success"
+                          size="small"
+                          onClick={() => handleArchive(cls._id)}
+                        >
+                          <RestoreIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
@@ -443,7 +496,7 @@ const Classes = () => {
             enableReinitialize
             initialValues={{
               className: selectedClass?.className || '',
-              schoolCampus: selectedClass?.schoolCampus?._id || '',
+              schoolCampus: selectedClass?.schoolCampus?._id || campusId || '',
               level: selectedClass?.level?._id || '',
               maxStudents: selectedClass?.maxStudents || 50,
             }}
@@ -478,40 +531,29 @@ const Classes = () => {
                     }}
                   />
 
+                  {/* Campus field - Read-only, auto-filled */}
                   <TextField
-                    select
                     label="Campus"
                     name="schoolCampus"
-                    value={values.schoolCampus || ''}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    error={touched.schoolCampus && Boolean(errors.schoolCampus)}
-                    helperText={touched.schoolCampus && errors.schoolCampus}
+                    value={values.schoolCampus || 'Loading...'}
                     fullWidth
+                    disabled
                     slotProps={{
                       input: {
                         id: 'schoolCampus',
+                        readOnly: true,
                         startAdornment: (
                           <InputAdornment position="start">
-                            {loading ? (
-                              <CircularProgress size={20} color="primary" />
-                            ) : (
-                              <BusinessIcon fontSize="small" />
-                            )}
+                            <BusinessIcon fontSize="small" />
                           </InputAdornment>
                         ),
                       },
                       inputLabel: {
                         htmlFor: 'schoolCampus',
+                        shrink: true,
                       },
                     }}
-                  >
-                    {(Array.isArray(campuses) ? campuses : []).map((camp) => (
-                      <MenuItem key={camp._id} value={camp._id}>
-                        {camp.campus_name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                  />
 
                   <TextField
                     select
@@ -524,18 +566,18 @@ const Classes = () => {
                     helperText={touched.level && errors.level}
                     fullWidth
                     slotProps={{
-                    input: {
-                      id: 'level',
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <SchoolIcon color="primary" />
-                        </InputAdornment>
-                      ),
-                    },
-                    inputLabel: {
-                      htmlFor: 'level',
-                    },
-                  }}
+                      input: {
+                        id: 'level',
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SchoolIcon color="primary" />
+                          </InputAdornment>
+                        ),
+                      },
+                      inputLabel: {
+                        htmlFor: 'level',
+                      },
+                    }}
                   >
                     {(Array.isArray(levels) ? levels : []).map((l) => (
                       <MenuItem key={l._id} value={l._id}>
@@ -555,14 +597,18 @@ const Classes = () => {
                     helperText={touched.maxStudents && errors.maxStudents}
                     fullWidth
                     slotProps={{
-                    input: {
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <GroupsIcon />
-                        </InputAdornment>
-                      ),
-                    },
-                  }}
+                      input: {
+                        id: 'maxStudents',
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <GroupsIcon />
+                          </InputAdornment>
+                        ),
+                      },
+                      inputLabel: {
+                        htmlFor: 'maxStudents',
+                      },
+                    }}
                   />
 
                   <Stack 

@@ -1,34 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Box,
-  Button,
-  Container,
-  Typography,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  IconButton,
-  Dialog,
-  DialogContent,
-  TextField,
-  Stack,
-  Tooltip,
-  InputAdornment,
-  Skeleton,
-  Divider,
-  Chip,
-  MenuItem,
-  Snackbar,
-  Alert,
-  useTheme,
-  useMediaQuery,
-  Card,
-  CardContent,
-  Grid,
+  Box, Button, Container, Typography, Paper, Table,
+  TableBody, TableCell, TableContainer, TableHead,
+  TableRow, IconButton, Dialog, DialogContent, TextField,
+  Stack, Tooltip, InputAdornment, Skeleton, Chip, MenuItem,
+  Snackbar, Alert, useTheme, useMediaQuery, Card, CardContent,
+  FormControlLabel, Switch,
 } from '@mui/material';
 
 import {
@@ -51,17 +28,20 @@ import axios from 'axios';
 import { API_BASE_URL } from '../../../config/env';
 import { createSubjectSchema } from '../../../yupSchema/createSubjectSchema';
 import MobileSubjectCard from './MobileSubjectCard';
+import { useParams } from 'react-router-dom';
 
 const Subject = () => {
   const theme = useTheme();
+  const { campusId } = useParams();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isTablet = useMediaQuery(theme.breakpoints.down('lg'));
 
   const [subjects, setSubjects] = useState([]);
-  const [campuses, setCampuses] = useState([]);
+  const [campus, setCampus] = useState(null);
   const [selectedSubject, setSelectedSubject] = useState(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [includeArchived, setIncludeArchived] = useState(false);
 
   // Enhanced notification system
   const [notification, setNotification] = useState({
@@ -89,24 +69,35 @@ const Subject = () => {
     setNotification({ ...notification, open: false });
   };
 
-  const authHeader = () => ({
-    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-  });
-
   /* ---------------- FETCH ---------------- */
   const fetchData = async () => {
+    // Validate campusId before fetching
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(campusId);
+    if (!campusId || !isMongoId) {
+      console.warn('Invalid campusId:', campusId);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
+      //Fetch subjects for specific campus with proper query param
+      const subjectUrl = `${API_BASE_URL}/subject?campusId=${campusId}&includeArchived=${includeArchived}`;
+
       const [subjectRes, campusRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/subject`, authHeader()),
-        axios.get(`${API_BASE_URL}/campus/all`, authHeader()),
+        axios.get(subjectUrl, getAuthHeader()),
+        axios.get(`${API_BASE_URL}/campus/${campusId}`, getAuthHeader()),
       ]);
       
       setSubjects(subjectRes.data?.data || []);
-      setCampuses(campusRes.data?.allCampus || []);
+      setCampus(campusRes.data?.data || null);
+
+      console.log();
+      
 
     } catch (e) {
-      setErrorMsg('Failed to load subjects');
+      console.error('Error loading subjects:', e);
+      showNotification('Failed to load subjects', 'error');
     } finally {
       setLoading(false);
     }
@@ -114,7 +105,7 @@ const Subject = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [campusId, includeArchived]);
 
   /* ---------------- SUBMIT ---------------- */
   const handleSubmit = async (values, { setSubmitting, resetForm }) => {
@@ -147,7 +138,7 @@ const Subject = () => {
 
   /* ---------------- DELETE / RESTORE ---------------- */
   const handleArchive = async (id) => {
-    if (!window.confirm('Archive this subject?')) return;
+    if (!window.confirm('Do you really want to archive this subject?')) return;
     
     try {
       await axios.delete(`${API_BASE_URL}/subject/${id}`, getAuthHeader());
@@ -222,20 +213,35 @@ const Subject = () => {
             Manage academic subjects for your campus
           </Typography>
         </Box>
-
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleOpenCreate}
-          fullWidth={isMobile}
-          sx={{
-            borderRadius: 2,
-            px: { xs: 2, sm: 3 },
-            py: 1.2,
-          }}
+        <Stack 
+          direction={{ xs: 'column', sm: 'row' }} 
+          spacing={2} 
+          alignItems="center" 
+          width={{ xs: '100%', md: 'auto' }}
         >
-          New Subject
-        </Button>
+          <FormControlLabel
+            control={
+              <Switch 
+                checked={includeArchived} 
+                onChange={(e) => setIncludeArchived(e.target.checked)} 
+                color="secondary"
+              />
+            }
+            label={<Typography variant="body2" sx={{ fontWeight: 500 }}>Show Archived</Typography>}
+            sx={{ mr: { md: 2 } }}
+          />
+
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleOpenCreate}
+            fullWidth={isMobile}
+            sx={{ borderRadius: 2, px: 3, py: 1.2 }}
+          >
+            New Subject
+          </Button>
+        </Stack>
+
       </Box>
 
       {/* Mobile View - Cards */}
@@ -297,7 +303,6 @@ const Subject = () => {
               <TableRow>
                 <TableCell>Subject</TableCell>
                 <TableCell>Code</TableCell>
-                <TableCell>Campus</TableCell>
                 <TableCell>Coefficient</TableCell>
                 <TableCell>Color</TableCell>
                 <TableCell>Status</TableCell>
@@ -309,14 +314,14 @@ const Subject = () => {
               {loading ? (
                 [...Array(5)].map((_, i) => (
                   <TableRow key={i}>
-                    <TableCell colSpan={7}>
+                    <TableCell colSpan={6}>
                       <Skeleton height={48} animation="wave" />
                     </TableCell>
                   </TableRow>
                 ))
               ) : isEmpty ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
                     <BookIcon sx={{ fontSize: 64, color: 'grey.300', mb: 2 }} />
                     <Typography variant="subtitle1" color="text.secondary">
                       No subjects registered at the moment
@@ -330,20 +335,16 @@ const Subject = () => {
                       <Stack direction="row" spacing={1.5} alignItems="center">
                         <BookIcon fontSize="small" color="action" />
                         <Typography fontWeight={600}>
-                          {subj.subject_name}
+                          {subj.subject_name || '—'}
                         </Typography>
                       </Stack>
                     </TableCell>
 
                     <TableCell>
-                      <Chip label={subj.subject_code} size="small" />
+                      <Chip label={subj.subject_code || '—'} size="small" />
                     </TableCell>
 
-                    <TableCell>
-                      {subj.schoolCampus?.campus_name || '—'}
-                    </TableCell>
-
-                    <TableCell>{subj.coefficient}</TableCell>
+                    <TableCell>{subj.coefficient || '—'}</TableCell>
 
                     <TableCell>
                       {subj.color ? (
@@ -457,7 +458,7 @@ const Subject = () => {
           <Formik
             enableReinitialize
             initialValues={{
-              schoolCampus: selectedSubject?.schoolCampus?._id || '',
+              schoolCampus: selectedSubject?.schoolCampus?._id || campusId || '',
               subject_name: selectedSubject?.subject_name || '',
               subject_code: selectedSubject?.subject_code || '',
               description: selectedSubject?.description || '',
@@ -470,19 +471,17 @@ const Subject = () => {
             {({ values, errors, touched, handleChange, handleBlur, isSubmitting }) => (
               <Form>
                 <Stack spacing={3}>
+                  {/* Campus field - Read-only, auto-filled */}
                   <TextField
-                    select
                     label="Campus"
                     name="schoolCampus"
-                    value={values.schoolCampus || ''}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    error={touched.schoolCampus && Boolean(errors.schoolCampus)}
-                    helperText={touched.schoolCampus && errors.schoolCampus}
+                    value={campus?.campus_name || 'Loading...'}
                     fullWidth
+                    disabled
                     slotProps={{
                       input: {
                         id: 'schoolCampus',
+                        readOnly: true,
                         startAdornment: (
                           <InputAdornment position="start">
                             <BusinessIcon fontSize="small" />
@@ -493,13 +492,7 @@ const Subject = () => {
                         htmlFor: 'schoolCampus',
                       },
                     }}
-                  >
-                    {(Array.isArray(campuses) ? campuses : []).map((camp) => (
-                      <MenuItem key={camp._id} value={camp._id}>
-                        {camp.campus_name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                  />
 
                   <TextField
                     autoFocus={!isMobile}
@@ -512,13 +505,16 @@ const Subject = () => {
                     helperText={touched.subject_name && errors.subject_name}
                     fullWidth
                     slotProps={{
-                       id:"subject_name",
                       input: {
+                        id: 'subject_name',
                         startAdornment: (
                           <InputAdornment position="start">
                             <BookIcon color="primary" />
                           </InputAdornment>
                         ),
+                      },
+                      inputLabel: {
+                        htmlFor: 'subject_name',
                       },
                     }}
                   />

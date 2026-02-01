@@ -164,6 +164,10 @@ const ManageLevel = ({ open, onClose, onLevelsUpdated }) => {
                   error={touched.name && Boolean(errors.name)}
                   helperText={touched.name && errors.name}
                   fullWidth
+                  slotProps={{
+                    input: {id: 'name'},
+                    inputLabel: {htmlFor: 'name'},
+                  }}
                 />
 
                 <TextField
@@ -175,6 +179,10 @@ const ManageLevel = ({ open, onClose, onLevelsUpdated }) => {
                   error={touched.code && Boolean(errors.code)}
                   helperText={touched.code && errors.code}
                   fullWidth
+                  slotProps={{
+                    input: {id: 'code'},
+                    inputLabel: {htmlFor: 'code'},
+                  }}
                 />
 
                 <TextField
@@ -183,6 +191,10 @@ const ManageLevel = ({ open, onClose, onLevelsUpdated }) => {
                   name="type"
                   value={values.type}
                   onChange={handleChange}
+                  slotProps={{
+                    input: {id: 'type'},
+                    inputLabel: {htmlFor: 'type'},
+                  }}
                 >
                   <MenuItem value="LANGUAGE">Langue</MenuItem>
                   <MenuItem value="ACADEMIC">Académique</MenuItem>
@@ -197,6 +209,11 @@ const ManageLevel = ({ open, onClose, onLevelsUpdated }) => {
                   onChange={handleChange}
                   error={touched.order && Boolean(errors.order)}
                   helperText={touched.order && errors.order}
+                  slotProps={{
+                    input: {id: 'order'},
+                    inputLabel: {htmlFor: 'order'},
+                  }}
+
                 />
 
                 <TextField
@@ -206,6 +223,10 @@ const ManageLevel = ({ open, onClose, onLevelsUpdated }) => {
                   onChange={handleChange}
                   multiline
                   rows={2}
+                  slotProps={{
+                    input: {id: 'description'},
+                    inputLabel: {htmlFor: 'description'},
+                  }}
                 />
 
                 <Button

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useFormik } from 'formik';
 import {
   Box,
@@ -21,7 +21,6 @@ import {
   Zoom,
   alpha,
   useTheme,
-  useMediaQuery,
 } from '@mui/material';
 import {
   MailOutline,
@@ -40,66 +39,36 @@ import {
 
 import { loginSchema } from '../../../yupSchema/loginSchema';
 import { useAuth } from '../../../hooks/useAuth';
-import '../../styles/animatedBackground.css';
+import '../../styles/Background.css';
 
 // User types configuration
 const USER_TYPES = [
   {
-    value: 'manager',
-    label: 'Manager',
+    value: 'admin',
+    label: 'Admin',
     icon: Business,
     gradient: 'linear-gradient(135deg, #003285 0%, #2a629a 100%)',
     color: '#003285',
   },
   {
-    value: 'student',
-    label: 'Student',
-    icon: School,
-    gradient: 'linear-gradient(135deg, #2a629a 0%, #4989c8 100%)',
-    color: '#2a629a',
-  },
-  {
-    value: 'teacher',
-    label: 'Teacher',
-    icon: RecordVoiceOver,
-    gradient: 'linear-gradient(135deg, #2a629a 0%, #003285 100%)',
-    color: '#2a629a',
-  },
-  {
-    value: 'parent',
-    label: 'Parent',
-    icon: FamilyRestroom,
-    gradient: 'linear-gradient(135deg, #4989c8 0%, #ffda78 100%)',
-    color: '#4989c8',
-  },
-  {
-    value: 'mentor',
-    label: 'Mentor',
-    icon: Psychology,
-    gradient: 'linear-gradient(135deg, #003285 0%, #4989c8 100%)',
-    color: '#003285',
-  },
-  {
-    value: 'partner',
-    label: 'Partner',
+    value: 'director',
+    label: 'Director',
     icon: Handshake,
     gradient: 'linear-gradient(135deg, #ff7f3e 0%, #ff9f5a 100%)',
     color: '#ff7f3e',
-  },
+  }
 ];
 
 
 
-export default function Login() {
+export default function LoginAdmin() {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
   const { login } = useAuth();
-  const { state } = useLocation();
 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [userType, setUserType] = useState('manager');
+  const [userType, setUserType] = useState('admin');
   const [useUsername, setUseUsername] = useState(false);
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -137,27 +106,18 @@ export default function Login() {
 
         setSnackbar({
           open: true,
-          message: `✨ Welcome back! Connected successfully as ${currentUserType.label}.`,
+          message: `✨ Welcome Back! Connected successfully as ${currentUserType.label}.`,
           severity: 'success',
         });
 
         // Redirect based on user type
         setTimeout(() => {
-          const fromDestination = state?.from;
-
           const redirectMap = {
-            campus: '/campus',
-            student: '/student',
-            teacher: '/teacher',
-            parent: '/parent',
-            mentor: '/mentor',
-            partner: '/partner',
             admin: '/',
             director: '/',
           };
 
-          const finalDestination = fromDestination || (redirectMap[userType] || '/');
-          navigate(finalDestination, { replace: true});
+          navigate(redirectMap[userType] || '/dashboard');
         }, 1200);
 
       } catch (error) {
@@ -181,12 +141,6 @@ export default function Login() {
       formik.resetForm();
     }
   };
-
-  //const selectUserType = (value) => {
-  //  setUserType(value);
-  //  formik.resetForm();
-  //};
-  
 
   const toggleIdentifierType = () => {
     setUseUsername(!useUsername);
@@ -283,7 +237,7 @@ export default function Login() {
                 </Typography>
                 <Box
                   component="img"
-                  src="vite.svg"
+                  src="../vite.svg"
                   sx={{
                     width: '70%',
                     maxWidth: 280,

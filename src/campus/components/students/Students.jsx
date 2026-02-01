@@ -15,11 +15,12 @@ import {
 import axios from 'axios';
 import StudentForm from './StudentForm';
 import { API_BASE_URL } from '../../../config/env';
+import { useParams } from 'react-router-dom';
 
 const Students = () => {
+  const { campusId } = useParams();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
   // --- STATES ---
   const [students, setStudents] = useState([]);
@@ -49,9 +50,22 @@ const Students = () => {
 
   // --- API CALLS ---
   const fetchStudents = async () => {
+
+    const isMongoId = /^[0-9a-fA-F]{24}$/.test(campusId);
+    
+    if (!campusId || !isMongoId) {
+      console.warn("Skipping fetch: campusId is not a valid MongoDB ID:", campusId);
+      return;
+    }
+    
     try {
       const res = await axios.get(`${API_BASE_URL}/student`, {
-        params: { page: page + 1, limit: rowsPerPage, search },
+        params: { 
+          page: page + 1, 
+          limit: rowsPerPage, 
+          search,
+          campus: campusId, 
+        },
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
 
@@ -68,7 +82,7 @@ const Students = () => {
 
   useEffect(() => {
     fetchStudents();
-  }, [page, rowsPerPage, search]);
+  }, [page, rowsPerPage, search, campusId]);
 
   // --- ACTIONS ---
   const handleOpenModal = (student = null) => {

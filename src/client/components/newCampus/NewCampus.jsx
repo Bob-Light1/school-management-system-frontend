@@ -79,7 +79,7 @@ export default function NewCampus() {
       location: {
         address: '',
         city: '',
-        country: 'Cameroun',
+        country: 'Cameroon',
         coordinates: {
           lat: null,
           lng: null,
@@ -107,7 +107,7 @@ export default function NewCampus() {
         formData.append('manager_name', values.manager_name);
         formData.append('email', values.email);
         formData.append('password', values.password);
-        formData.append('phone', values.manager_phone);
+        formData.append('manager_phone', values.manager_phone);
         
         if (values.campus_number) {
           formData.append('campus_number', values.campus_number);

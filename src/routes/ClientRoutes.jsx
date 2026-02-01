@@ -3,15 +3,12 @@ import { lazy, Suspense } from 'react';
 import Loader from '../components/Loader';
 import AllCampus from '../client/components/allCampus/AllCampus';
 import Contact from '../client/components/contact/Contact';
-import Admin from '../client/components/admin/Admin';
 
 // Lazy layouts & pages
 const Client = lazy(() => import('../client/Client'));
 const Home = lazy(() => import('../client/components/home/Home'));
 const Login = lazy(() => import('../client/components/login/Login'));
-const NewCampus = lazy(() =>
-  import('../client/components/newCampus/NewCampus')
-);
+const NewCampus = lazy(() => import('../client/components/newCampus/NewCampus'));
 
 export const clientRoutes = (
   
@@ -61,15 +58,6 @@ export const clientRoutes = (
         element={
           <Suspense fallback={<Loader />}>
             <Contact />
-          </Suspense>
-        }
-      />
-
-      <Route
-        path="admin"
-        element={
-          <Suspense fallback={<Loader />}>
-            <Admin />
           </Suspense>
         }
       />
