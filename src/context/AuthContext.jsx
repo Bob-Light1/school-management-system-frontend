@@ -5,7 +5,7 @@ export const AuthContext = createContext(undefined);
 
 // User type to endpoint mapping
 const USER_TYPE_ENDPOINTS = {
-  admin: '/campus/login',
+  admin: '/admin/login',
   director: '/director/login',
   manager: '/campus/login',
   teacher: '/teacher/login',

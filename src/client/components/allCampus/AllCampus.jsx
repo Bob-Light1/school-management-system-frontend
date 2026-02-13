@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Box, Grid, Card, CardMedia, CardContent, Typography, 
@@ -31,6 +31,8 @@ export default function AllCampus() {
   const [campuses, setCampuses] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
 
+  const fetchedRef = useRef();
+
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -45,6 +47,9 @@ export default function AllCampus() {
   };
 
   useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+
     const fetchCampus = async () => {
 
       try {
@@ -180,24 +185,30 @@ export default function AllCampus() {
 
             {/* Search Bar */}
             <TextField
-              placeholder="Rechercher un campus..."
+              placeholder="Search a campus..."
               variant="outlined"
               size="small"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ color: '#4989c8' }} />
-                  </InputAdornment>
-                ),
+              slotProps={{
+                input: {
+                  id: 'search',
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ color: '#4989c8' }} />
+                    </InputAdornment>
+                  ),
+                },
                 endAdornment: searchQuery && (
                   <InputAdornment position="end">
                     <IconButton size="small" onClick={() => setSearchQuery('')}>
                       <CloseIcon fontSize="small" />
                     </IconButton>
                   </InputAdornment>
-                )
+                ),
+                inputLabel: {
+                  htmlFor: 'search',
+                },
               }}
               sx={{
                 minWidth: { xs: '100%', sm: 225, md:350 },
@@ -283,7 +294,7 @@ export default function AllCampus() {
             <Grid
               size={{ xs: 12, sm: 12, md: 6, lg:4}}
               sx={{display:'flex', justifyContent:'center'}}
-              key={campus.id || index}
+              key={campus._id || index}
             >
               <MotionCard
                 initial={{ opacity: 0, y: 20 }}
@@ -333,8 +344,8 @@ export default function AllCampus() {
                     <CardMedia
                       component="img"
                       image={campus.campus_image 
-                        ? `${IMAGE_BASE_URL}${campus.campus_image}` 
-                        : 'images/hotel.jpg'}
+                        ? `${IMAGE_BASE_URL}/uploads/campuses/${campus.campus_image}` 
+                        : 'hotel.jpg'}
                       alt={campus.campus_name}
                       sx={{ 
                         height: '100%',
@@ -342,7 +353,7 @@ export default function AllCampus() {
                       }}
                       // Optionnel : Gérer l'erreur si le lien est mort
                       onError={(e) => {
-                        e.target.src = 'images/hotel.jpg';
+                        e.target.src = 'hotel.jpg';
                       }}
                     />
                   </MotionDiv>
@@ -376,7 +387,7 @@ export default function AllCampus() {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <LocationOnIcon sx={{ fontSize: 16, color: '#ffda78' }} />
                         <Typography variant="body2" sx={{ color: '#ffda78', fontWeight: 500 }}>
-                          {campus.location.city || "Cameroon"} - {campus.location.address || "Yaounde"}
+                          {campus.location?.city || "Cameroon"} - {campus.location?.address || "Yaounde"}
                         </Typography>
                       </Box>
                     </MotionDiv>
@@ -511,15 +522,17 @@ export default function AllCampus() {
         open={open}
         onClose={handleClose}
         closeAfterTransition
-        BackdropComponent={Backdrop}
-        BackdropProps={{ 
-          timeout: 500, 
-          sx: { 
-            backdropFilter: 'blur(10px)',
-            backgroundColor: 'rgba(0,0,0,0.5)'
-          } 
+        slots={{ backdrop : Backdrop }}
+        slotProps={{
+          backdrop : { 
+            timeout: 500, 
+            sx: { 
+              backdropFilter: 'blur(10px)',
+              backgroundColor: 'rgba(0,0,0,0.5)'
+            }  
+          },
         }}
-      >
+       >
         <MotionDiv
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -546,7 +559,7 @@ export default function AllCampus() {
               overflow: 'hidden'
             }}>
               <motion.img 
-                src={`${IMAGE_BASE_URL}${selectedCampus?.campus_image}`}
+                src={`${IMAGE_BASE_URL}/uploads/campuses/${selectedCampus?.campus_image}`}
                 style={{ 
                   width: '100%', 
                   height: '100%', 

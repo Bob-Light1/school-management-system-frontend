@@ -167,6 +167,9 @@ export default function CampusDashboard() {
 
         if (statsRes.data.success) {
           setStats(statsRes.data.data);
+
+          console.log("Stats : ", statsRes.data.data);
+          
         }
 
       } catch (error) {

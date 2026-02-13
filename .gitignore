@@ -23,6 +23,10 @@ dist-ssr
 *.sln
 *.sw?
 
+.env
+
 #Test and guide folders
 code_guide
+
+HookText.md
 

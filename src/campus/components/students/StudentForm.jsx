@@ -6,12 +6,18 @@ import {
 } from '@mui/material';
 import { 
   Person, Email, Phone, Badge, Lock, School, Domain,
-  PhotoCamera, Close, Check, Cancel
+  PhotoCamera, Close, Check, Cancel,
+  VisibilityOff,
+  Visibility
 } from '@mui/icons-material';
+import NumbersIcon from '@mui/icons-material/Numbers';
+import PersonIcon from '@mui/icons-material/Person';
+
+
 import { useFormik } from 'formik';
 import axios from 'axios';
 import { createStudentSchema } from '../../../yupSchema/createStudentSchema';
-import { API_BASE_URL } from '../../../config/env';
+import { API_BASE_URL, IMAGE_BASE_URL } from '../../../config/env';
 import { useParams } from 'react-router-dom';
 
 const StudentForm = ({ initialData, onSuccess, onCancel }) => {
@@ -24,8 +30,20 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [imagePreview, setImagePreview] = useState(initialData?.profileImage || null);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [imagePreview, setImagePreview] = useState(
+    initialData?.profileImage 
+      ? (initialData.profileImage.startsWith('http') 
+          ? initialData.profileImage 
+          : `${IMAGE_BASE_URL.replace(/\/$/, '')}/${initialData.profileImage.replace(/^\//, '')}`) 
+      : null
+  );
+
   const isEdit = !!initialData;
+  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+  const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
+  const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -70,11 +88,12 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
       firstName: initialData?.firstName || '',
       lastName: initialData?.lastName || '',
       email: initialData?.email || '',
-      schoolCampus: initialData?.schoolCampus?._id || '',
+      schoolCampus: initialData?.schoolCampus?._id || campus?._id || '',
+      studentClass: initialData?.studentClass?._id || '',
       username: initialData?.username || '',
       phone: initialData?.phone || '',
       gender: initialData?.gender || 'male',
-      studentClass: initialData?.studentClass?._id || '',
+      matricule: initialData?.matricule || '',
       password: '',
       dateOfBirth: initialData?.dateOfBirth ? initialData.dateOfBirth.split('T')[0] : '',
       profileImage: null, // File object
@@ -85,6 +104,7 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
     validateOnBlur: true,
 
     onSubmit: async (values) => {
+      if(submitting) return;
       setSubmitting(true);
 
       try {
@@ -111,15 +131,15 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
         };
 
         if (isEdit) {
-          await axios.patch(
-            `${API_BASE_URL}/student/${initialData._id}`, 
+          await axios.put(
+            `${API_BASE_URL}/students/${initialData._id}`, 
             formData,
             config
           );
           onSuccess?.('Student updated successfully');
         } else {
           await axios.post(
-            `${API_BASE_URL}/student`, 
+            `${API_BASE_URL}/students`, 
             formData,
             config
           );
@@ -129,58 +149,121 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
           formik.resetForm();
           setImagePreview(null);
         }
+
       } catch (err) {
-        const errorMessage = err.response?.data?.message || 'An error occurred';
-        showSnackbar(errorMessage, 'error');
         console.error('Submit error:', err);
+        
+        let errorMessage = 'An error occurred';
+        
+        if (err.response?.status === 400) {
+          errorMessage = err.response.data?.error 
+            || err.response.data?.message 
+            || 'Validation error';
+
+        } 
+        
+        else if (err.response?.status === 413) {
+          errorMessage = 'File too large. Maximum size is 5MB';
+        }
+        
+        else if (err.response?.status === 401) {
+          errorMessage = 'Session expired. Please login again';
+            setTimeout(() => {
+            window.location.href = '/login';
+          }, 2000);
+        }
+
+        else if (err.code === 'ECONNABORTED') {
+          errorMessage = 'Upload timeout. Please check your connection';
+        }
+        
+        else if (err.response?.status >= 500) {
+          errorMessage = 'Server error. Please try again later';
+        }
+        
+        showSnackbar(errorMessage, 'error');
+        
       } finally {
         setSubmitting(false);
       }
     },
   });
 
-  // Auto-set campus for non-edit mode
   useEffect(() => {
-    if (!isEdit && campus?._id) {
-      formik.setFieldValue('schoolCampus', campus._id, true);
+    if (campus?._id) {
+    formik.setFieldValue('schoolCampus', campus._id, true);
     }
-  }, [campus, isEdit]);
+   }, [campus]);
 
   // Handle image selection
   const handleImageChange = (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      showSnackbar('Please select a valid image file', 'error');
+    // Check MIME type
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      showSnackbar('Only JPG, PNG and WEBP images are allowed', 'error');
+      return;
+    }
+
+    // Check extension (protection against spoofing)
+    const extension = file.name.toLowerCase().match(/\.[^.]+$/)?.[0];
+    if (!extension || !ALLOWED_EXTENSIONS.includes(extension)) {
+      showSnackbar('Invalid file extension', 'error');
       return;
     }
     
     // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > MAX_IMAGE_SIZE) {
       showSnackbar('Image size should not exceed 5MB', 'error');
       return;
     }
 
-    // Update Formik state
-    formik.setFieldValue('profileImage', file);
     
-    // Create preview
+    // Check if it's a real image
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result);
+    reader.onload = (e) => {
+      const img = new Image();
+
+      img.onload = () => {
+        // Valid image
+        formik.setFieldValue('profileImage', file);
+        setImagePreview(e.target.result);
+      };
+
+      img.onerror = () => {
+        showSnackbar('File is not a valid image', 'error');
+      };
+
+      img.src = e.target.result;
     };
+
+    reader.onerror = () => {
+      showSnackbar('Error reading file', 'error');
+    };
+
     reader.readAsDataURL(file);
   };
 
   const handleRemoveImage = () => {
     formik.setFieldValue('profileImage', null);
-    setImagePreview(initialData?.profileImage || null);
+
+    const originalImage = initialData?.profileImage 
+    ? (initialData.profileImage.startsWith('http') 
+        ? initialData.profileImage 
+        : `${API_BASE_URL}/${initialData.profileImage}`) 
+    : null;
+
+    setImagePreview(originalImage);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
+
+  useEffect(() => {
+    document.activeElement?.blur();
+  }, [isEdit]);
+  
 
   if (loading) {
     return (
@@ -211,11 +294,13 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
                 <Box sx={{ position: 'relative' }}>
                   <Avatar
                     src={imagePreview}
+                    alt={`${formik.values.firstName} ${formik.values.lastName}`}
                     sx={{ 
                       width: 120, 
                       height: 120,
                       border: `4px solid ${theme.palette.primary.main}`,
-                      boxShadow: theme.shadows[4]
+                      boxShadow: theme.shadows[4],
+                      bgcolor: theme.palette.grey[200]
                     }}
                   >
                     <Person sx={{ fontSize: 60 }} />
@@ -313,8 +398,17 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
               error={formik.touched.lastName && Boolean(formik.errors.lastName)}
               helperText={formik.touched.lastName && formik.errors.lastName}
               slotProps={{
-                input: {id: 'lastName'},
-                inputLabel: { htmlFor: 'lastName' },
+                input: {
+                  id: 'lastName',
+                  startAdornment: (
+                    <InputAdornment position="start">
+                     <PersonIcon fontSize="small" color="action" />
+                    </InputAdornment> 
+                  ),
+                },
+                inputLabel: {
+                  htmlFor: 'lastName',
+                },
               }}
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
             />
@@ -341,6 +435,33 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
                 },
                 inputLabel: {
                   htmlFor: 'userName',
+                },
+              }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+            />
+          </Grid>
+
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField
+              fullWidth 
+              name="matricule" 
+              label="Matricule"
+              value={formik.values.matricule} 
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={formik.touched.matricule && Boolean(formik.errors.matricule)}
+              helperText={formik.touched.matricule && formik.errors.matricule}
+              slotProps={{
+                input: {
+                  id: 'matricule',
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <NumbersIcon fontSize="small" color="action" />
+                    </InputAdornment> 
+                  ),
+                },
+                inputLabel: {
+                  htmlFor: 'matricule',
                 },
               }}
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
@@ -466,7 +587,7 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
                   fullWidth 
                   name="password" 
                   label="Password" 
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={formik.values.password} 
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
@@ -478,6 +599,21 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
                         <InputAdornment position="start">
                           <Lock fontSize="small" color="action" />
                         </InputAdornment> 
+                      ),
+
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            onClick={() => setShowPassword(!showPassword)}
+                            edge="end"
+                          >
+                            {showPassword ? (
+                              <VisibilityOff />
+                            ) : (
+                              <Visibility />
+                            )}
+                          </IconButton>
+                        </InputAdornment>
                       ),
                     },
                   }}
