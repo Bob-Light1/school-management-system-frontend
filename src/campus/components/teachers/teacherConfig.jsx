@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   Avatar,
   Box,
@@ -72,7 +71,7 @@ export const getKPIMetrics = (kpis, theme) => [
 // ========================================
 export const tableColumns = [
   { key: 'teacher', label: 'Teacher' },
-  { key: 'staffId', label: 'Staff ID' },
+  { key: 'matricule', label: 'Matricule' },
   { key: 'department', label: 'Department' },
   { key: 'subjects', label: 'Subjects' },
   { key: 'contact', label: 'Contact' },
@@ -83,50 +82,54 @@ export const tableColumns = [
 // ========================================
 // FILTERS CONFIGURATION
 // ========================================
-export const getFilterConfig = (departments = [], subjects = []) => [
-  {
-    key: 'department',
-    label: 'Department',
-    type: 'select',
-    options: [
-      { value: '', label: 'All Departments' },
-      ...departments.map((d) => ({ value: d._id, label: d.name })),
-    ],
-  },
-  {
-    key: 'subject',
-    label: 'Subject',
-    type: 'select',
-    options: [
-      { value: '', label: 'All Subjects' },
-      ...subjects.map((s) => ({ value: s._id, label: s.name })),
-    ],
-  },
-  {
-    key: 'status',
-    label: 'Status',
-    type: 'select',
-    options: [
-      { value: '', label: 'All Statuses' },
-      { value: 'active', label: 'Active' },
-      { value: 'on_leave', label: 'On Leave' },
-      { value: 'suspended', label: 'Suspended' },
-      { value: 'archived', label: 'Archived' },
-    ],
-  },
-  {
-    key: 'qualification',
-    label: 'Qualification',
-    type: 'select',
-    options: [
-      { value: '', label: 'All Qualifications' },
-      { value: 'bachelor', label: "Bachelor's" },
-      { value: 'master', label: "Master's" },
-      { value: 'phd', label: 'PhD' },
-    ],
-  },
-];
+export const getFilterConfig = (relatedData = {}) => {
+  const departments = relatedData.departments || [];
+  const subjects    = relatedData.subjects    || [];
 
+  return [
+    {
+      key: 'department',
+      label: 'Department',
+      type: 'select',
+      options: [
+        { value: '', label: 'All Departments' },
+        ...departments.map((d) => ({ value: d._id, label: d.name })),
+      ],
+    },
+    {
+      key: 'subject',
+      label: 'Subject',
+      type: 'select',
+      options: [
+        { value: '', label: 'All Subjects' },
+        ...subjects.map((s) => ({ value: s._id, label: s.name })),
+      ],
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      type: 'select',
+      options: [
+        { value: '', label: 'All Statuses' },
+        { value: 'active',    label: 'Active'    },
+        { value: 'on_leave',  label: 'On Leave'  },
+        { value: 'suspended', label: 'Suspended' },
+        { value: 'archived',  label: 'Archived'  },
+      ],
+    },
+    {
+      key: 'qualification',
+      label: 'Qualification',
+      type: 'select',
+      options: [
+        { value: '',        label: 'All Qualifications' },
+        { value: 'bachelor', label: "Bachelor's"        },
+        { value: 'master',   label: "Master's"          },
+        { value: 'phd',      label: 'PhD'               },
+      ],
+    },
+  ];
+};
 // ========================================
 // TABLE ROW RENDERER
 // ========================================
@@ -168,7 +171,7 @@ export const renderTableRow = (teacher, helpers) => {
       <TableCell>
         <Chip
           icon={<BadgeIcon />}
-          label={teacher.staffId || 'N/A'}
+          label={teacher.matricule || 'TEA'}
           size="small"
           variant="outlined"
         />
@@ -177,7 +180,7 @@ export const renderTableRow = (teacher, helpers) => {
       {/* Department */}
       <TableCell>
         <Typography variant="body2" fontWeight={500}>
-          {teacher.department?.name || 'N/A'}
+          {teacher.department?.name || 'DEUSCH'}
         </Typography>
       </TableCell>
 
@@ -253,7 +256,7 @@ export const teacherConfig = {
   // Entity identification
   entityName: 'Teacher',
   entityNamePlural: 'Teachers',
-  apiEndpoint: 'teacher',
+  apiEndpoint: 'teachers',
   
   // UI Customization
   addButtonText: 'Add New Teacher',

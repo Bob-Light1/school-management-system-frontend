@@ -249,7 +249,7 @@ export default function CampusDashboard() {
             <CardContent sx={{ mt: -7, position: 'relative' }}>
               {/* Campus Logo */}
               <Avatar
-                src={campus.campus_image ? `${IMAGE_BASE_URL}${campus.campus_image}` : null}
+                src={campus.campus_image ? `${IMAGE_BASE_URL}/uploads/campuses/${campus.campus_image}` : null}
                 alt={campus.campus_name}
                 sx={{ 
                   width: 100, 

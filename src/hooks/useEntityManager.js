@@ -27,6 +27,7 @@ const useEntityManager = ({
   // Filters & Search
   const [filters, setFilters] = useState({});
   const [search, setSearch] = useState('');
+  const [includeArchived, setIncludeArchived] = useState(false);
   
   // Pagination
   const [page, setPage] = useState(0);
@@ -69,11 +70,12 @@ const useEntityManager = ({
 
     try {
       const params = {
+        campusId: campusId,
+        ...filters,
+        search,
         page: page + 1,
         limit: rowsPerPage,
-        search,
-        campus: campusId,
-        ...filters
+        includeArchived,
       };
 
       const res = await api.get(`/${apiEndpoint}`, {
@@ -97,7 +99,7 @@ const useEntityManager = ({
     } finally {
       setLoading(false);
     }
-  }, [apiEndpoint, campusId, page, rowsPerPage, search, filters]);
+  }, [apiEndpoint, campusId, page, rowsPerPage, search, filters,includeArchived]);
 
   // ========================================
   // CREATE ENTITY
@@ -218,6 +220,8 @@ const useEntityManager = ({
     setFilters,
     search,
     setSearch,
+    includeArchived,
+    setIncludeArchived,
     
     // Pagination
     page,

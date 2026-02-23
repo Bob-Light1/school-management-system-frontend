@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   Box,
   Container,
@@ -26,27 +26,26 @@ import {
   Checkbox,
   Menu,
   MenuItem,
-  LinearProgress,
   TextField,
   Fab,
   Skeleton,
   Card,
   CardContent,
   CardActions,
+  FormControlLabel,
+  Switch,
 } from '@mui/material';
 import {
   Add,
   Close,
   SwapHoriz,
   Email,
-  Send,
   Block,
   Download,
   Edit,
   Visibility,
   Delete,
   Inbox,
-  Upload,
   MoreVert,
   FileDownload,
   FileUpload,
@@ -57,15 +56,35 @@ import KPICards from './KpiCard';
 import FilterBar from './FilterBar';
 import ExportDialog from './Exportdialog';
 import ImportDialog from './Importdialog';
+import { BulkClassModal, BulkEmailModal } from './BulkModals';
 import useEntityManager from '../../hooks/useEntityManager';
 import useBulkActions from '../../hooks/useBulkActions';
-import api from '../../api/axiosInstance';
+import useRelatedData from '../../hooks/useRelatedData';
 
 /**
- * GENERIC ENTITY MANAGEMENT PAGE - FINAL VERSION 
- * @param {Object} props - Configuration props
+ * GENERIC ENTITY MANAGEMENT PAGE
+ *
+ * @param {string}   entityName              - Singular entity label (e.g. "Teacher")
+ * @param {string}   entityNamePlural        - Plural entity label (e.g. "Teachers")
+ * @param {string}   apiEndpoint             - Base API path (e.g. "teacher")
+ * @param {Array}    tableColumns            - Column definitions for the table header
+ * @param {Function} filterConfig            - Function(relatedData) => filter array, or static array
+ * @param {Function} getKPIMetrics           - Function(kpis, theme) => metrics array
+ * @param {Component} FormComponent          - Create/Edit form component
+ * @param {Component} DetailComponent        - Detail drawer component
+ * @param {Function} renderTableRow          - Function(entity, helpers) => <TableRow />
+ * @param {Array}    bulkActions             - Enabled bulk action keys
+ * @param {string}   addButtonText           - Override "Add {entityName}" button label
+ * @param {ReactNode} addButtonIcon          - Override add button icon
+ * @param {string}   searchPlaceholder       - Override search input placeholder
+ * @param {boolean}  showArchiveToggle       - Show "Show Archived" toggle
+ * @param {boolean}  enableImport            - Show import feature
+ * @param {boolean}  enableExport            - Show export feature
+ * @param {Object}   relatedDataEndpoints    - Map of key → API path for related data
+ *                                            e.g. { departments: '/department', subjects: '/subject' }
+ *                                            Each endpoint receives campusId as query param.
+ *                                            Result is passed to filterConfig(relatedData).
  */
-
 const GenericEntityPage = ({
   entityName,
   entityNamePlural,
@@ -80,22 +99,22 @@ const GenericEntityPage = ({
   addButtonText,
   addButtonIcon,
   searchPlaceholder,
-  enableImport = true,   // Enable import feature
-  enableExport = true,   // Enable export feature
+  showArchiveToggle = false,
+  enableImport = true,
+  enableExport = true,
+  relatedDataEndpoints = {},
+  extraHeaderActions = null,    // Optional ReactNode rendered next to Add button
 }) => {
   const { campusId } = useParams();
   const theme = useTheme();
-  
-  // Responsive breakpoints
+
   const isXs = useMediaQuery(theme.breakpoints.down('sm'));
   const isSm = useMediaQuery(theme.breakpoints.down('md'));
-  const isMd = useMediaQuery(theme.breakpoints.down('lg'));
-  
   const isMobile = isSm;
 
-  // ========================================
-  // HOOKS
-  // ========================================
+  // ============================================================
+  // DATA HOOKS
+  // ============================================================
 
   const {
     entities,
@@ -110,15 +129,13 @@ const GenericEntityPage = ({
     setFilters,
     search,
     setSearch,
+    includeArchived,
+    setIncludeArchived,
     page,
     setPage,
     rowsPerPage,
     setRowsPerPage,
-  } = useEntityManager({
-    apiEndpoint,
-    campusId,
-    initialRowsPerPage: 10,
-  });
+  } = useEntityManager({ apiEndpoint, campusId, initialRowsPerPage: 10 });
 
   const {
     selectedIds,
@@ -131,106 +148,76 @@ const GenericEntityPage = ({
     bulkChangeClass,
     bulkSendEmail,
     bulkArchive,
-    bulkExport,
     processing,
   } = useBulkActions({
     apiEndpoint,
     entities,
-    onSuccess: () => {
-      fetchEntities();
-      fetchKPIs();
-    },
-    onError: (error) => {
-      showSnackbar(error, 'error');
-    },
+    onSuccess: () => { fetchEntities(); fetchKPIs(); },
+    onError: (error) => showSnackbar(error, 'error'),
   });
 
-  // ========================================
-  // LOCAL STATE
-  // ========================================
+  // ---- Related data (departments, subjects, classes, etc.) ----
+  // Always include 'classes' unless the config already defines it,
+  // since BulkClassModal needs it for the changeClass action.
+  const mergedEndpoints = useMemo(() => ({
+    classes: '/class',         // default – always available for bulk changeClass
+    ...relatedDataEndpoints,   // config may override or add more
+  }), [relatedDataEndpoints]);
 
-  const [relatedData, setRelatedData] = useState({});
-  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const relatedData = useRelatedData(mergedEndpoints, campusId);
+
+  // ============================================================
+  // LOCAL UI STATE
+  // ============================================================
+
+  const [isFormModalOpen,      setIsFormModalOpen]      = useState(false);
+  const [isDrawerOpen,         setIsDrawerOpen]         = useState(false);
   const [isBulkClassModalOpen, setIsBulkClassModalOpen] = useState(false);
   const [isBulkEmailModalOpen, setIsBulkEmailModalOpen] = useState(false);
-  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false); 
-  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
-  const [selectedEntity, setSelectedEntity] = useState(null);
-  const [viewEntity, setViewEntity] = useState(null);
-  const [bulkMenuAnchor, setBulkMenuAnchor] = useState(null);
-  const [moreMenuAnchor, setMoreMenuAnchor] = useState(null);
-  const [bulkClassId, setBulkClassId] = useState('');
-  const [bulkEmail, setBulkEmail] = useState({ subject: '', message: '' });
-  const [snackbar, setSnackbar] = useState({ 
-    open: false, 
-    message: '', 
-    severity: 'success' 
-  });
+  const [isExportDialogOpen,   setIsExportDialogOpen]   = useState(false);
+  const [isImportDialogOpen,   setIsImportDialogOpen]   = useState(false);
+  const [selectedEntity,       setSelectedEntity]       = useState(null);
+  const [viewEntity,           setViewEntity]           = useState(null);
+  const [bulkMenuAnchor,       setBulkMenuAnchor]       = useState(null);
+  const [moreMenuAnchor,       setMoreMenuAnchor]       = useState(null);
+  const [bulkClassId,          setBulkClassId]          = useState('');
+  const [bulkEmail,            setBulkEmail]            = useState({ subject: '', message: '' });
+  const [snackbar,             setSnackbar]             = useState({ open: false, message: '', severity: 'success' });
 
-  // ========================================
-  // FETCH RELATED DATA
-  // ========================================
+  // ============================================================
+  // COMPUTED
+  // ============================================================
 
-  useEffect(() => {
-    const controller = new AbortController();
-  
-    const fetchRelatedData = async () => {
-      try {
-        const resClasses = await api.get('/class', {
-          params: { campusId },
-          signal: controller.signal
-        });
-  
-        if (resClasses.data?.success) {
-          setRelatedData(prev => ({
-            ...prev,
-            classes: resClasses.data.data || []
-          }));
-        }
-  
-      } catch (err) {
-        if (err.name !== 'CanceledError') {
-          console.error(err);
-        }
-      }
-    };
-  
-    if (campusId) fetchRelatedData();
-  
-    return () => controller.abort();
-  
-  }, [campusId]);
-
-  // ========================================
-  // COMPUTED VALUES
-  // ========================================
-
+  // filterConfig can be:
+  //   - a function(relatedData) → filter array   (new style – full relatedData object)
+  //   - a function(classes)     → filter array   (legacy style – only classes)
+  //   - a static array
   const computedFilters = useMemo(() => {
     if (typeof filterConfig === 'function') {
-      return filterConfig(relatedData.classes || []);
+      // Detect legacy signature: function expects a plain array (classes only)
+      // We call it with the full relatedData object; configs that only use
+      // getFilterConfig(classes) will still work because relatedData.classes is an array.
+      return filterConfig(relatedData);
     }
-    if (Array.isArray(filterConfig)) {
-      return filterConfig;
-    }
+    if (Array.isArray(filterConfig)) return filterConfig;
     return [];
-  }, [filterConfig, relatedData.classes]);
+  }, [filterConfig, relatedData]);
 
-  const metrics = useMemo(() => 
-    getKPIMetrics(kpis, theme), 
+  const metrics = useMemo(
+    () => getKPIMetrics(kpis, theme),
     [kpis, theme, getKPIMetrics]
   );
 
-  // ========================================
-  // HANDLERS (useCallback for performance)
-  // ========================================
+  // ============================================================
+  // HANDLERS
+  // ============================================================
 
   const showSnackbar = useCallback((message, severity = 'success') => {
     setSnackbar({ open: true, message, severity });
   }, []);
 
   const handleFilterChange = useCallback((key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    setFilters((prev) => ({ ...prev, [key]: value }));
     setPage(0);
   }, [setFilters, setPage]);
 
@@ -240,25 +227,18 @@ const GenericEntityPage = ({
     setPage(0);
   }, [setFilters, setSearch, setPage]);
 
-  const handleOpenFormModal = useCallback((entity = null) => {
-    setSelectedEntity(entity);
-    setIsFormModalOpen(true);
-  }, []);
-
-  const handleOpenDrawer = useCallback((entity) => {
-    setViewEntity(entity);
-    setIsDrawerOpen(true);
-  }, []);
+  const handleOpenFormModal  = useCallback((entity = null) => { setSelectedEntity(entity); setIsFormModalOpen(true);  }, []);
+  const handleOpenDrawer     = useCallback((entity)        => { setViewEntity(entity);      setIsDrawerOpen(true);    }, []);
 
   const handleArchive = useCallback(async (id) => {
-    if (window.confirm(`Are you sure you want to archive this ${entityName}?`)) {
-      const result = await deleteEntity(id);
-      if (result.success) {
-        showSnackbar(`${entityName} archived successfully`);
-      } else {
-        showSnackbar(result.error || `Failed to archive ${entityName}`, 'error');
-      }
-    }
+    if (!window.confirm(`Are you sure you want to archive this ${entityName}?`)) return;
+    const result = await deleteEntity(id);
+    showSnackbar(
+      result.success
+        ? `${entityName} archived successfully`
+        : result.error || `Failed to archive ${entityName}`,
+      result.success ? 'success' : 'error'
+    );
   }, [entityName, deleteEntity, showSnackbar]);
 
   const handleFormSuccess = useCallback((message) => {
@@ -268,7 +248,6 @@ const GenericEntityPage = ({
     showSnackbar(message);
   }, [fetchEntities, fetchKPIs, showSnackbar]);
 
-  // Import success handler
   const handleImportSuccess = useCallback((message) => {
     setIsImportDialogOpen(false);
     fetchEntities();
@@ -276,148 +255,117 @@ const GenericEntityPage = ({
     showSnackbar(message, 'success');
   }, [fetchEntities, fetchKPIs, showSnackbar]);
 
-  // Bulk actions handlers
+  // ---- Bulk ----
   const handleBulkChangeClassSubmit = useCallback(async () => {
-    if (!bulkClassId) {
-      showSnackbar('Please select a class', 'error');
-      return;
-    }
-
+    if (!bulkClassId) { showSnackbar('Please select a class', 'error'); return; }
     const result = await bulkChangeClass(bulkClassId);
-    
-    if (result.success) {
-      setIsBulkClassModalOpen(false);
-      setBulkClassId('');
-      showSnackbar(result.message);
-    } else {
-      showSnackbar(result.error, 'error');
-    }
+    if (result.success) { setIsBulkClassModalOpen(false); setBulkClassId(''); showSnackbar(result.message); }
+    else showSnackbar(result.error, 'error');
   }, [bulkClassId, bulkChangeClass, showSnackbar]);
 
   const handleBulkSendEmailSubmit = useCallback(async () => {
-    if (!bulkEmail.subject || !bulkEmail.message) {
-      showSnackbar('Please fill in subject and message', 'error');
-      return;
+    if (!bulkEmail.subject || !bulkEmail.message) { 
+      showSnackbar('Please fill in subject and message', 'error'); 
+      return; 
     }
-
     const result = await bulkSendEmail(bulkEmail.subject, bulkEmail.message);
-    
-    if (result.success) {
-      setIsBulkEmailModalOpen(false);
-      setBulkEmail({ subject: '', message: '' });
-      showSnackbar(result.message);
-    } else {
-      showSnackbar(result.error, 'error');
+    if (result.success) { 
+      setIsBulkEmailModalOpen(false); 
+      setBulkEmail({ subject: '', message: '' }); 
+      showSnackbar(result.message); 
     }
+    else showSnackbar(result.error, 'error');
   }, [bulkEmail, bulkSendEmail, showSnackbar]);
 
   const handleBulkArchiveSubmit = useCallback(async () => {
     if (!window.confirm(`Archive ${selectedCount} ${entityName}(s)?`)) return;
-
     const result = await bulkArchive();
-    
-    if (result.success) {
-      showSnackbar(result.message);
-    } else {
-      showSnackbar(result.error, 'error');
-    }
+    showSnackbar(result.success ? result.message : result.error, result.success ? 'success' : 'error');
   }, [selectedCount, entityName, bulkArchive, showSnackbar]);
-
-  const handleBulkExportSubmit = useCallback(async () => {
-    setIsExportDialogOpen(true);
-    setBulkMenuAnchor(null);
-  }, []);
 
   const handleBulkAction = useCallback((action) => {
     setBulkMenuAnchor(null);
-    switch (action) {
-      case 'changeClass':
-        setIsBulkClassModalOpen(true);
-        break;
-      case 'sendEmail':
-        setIsBulkEmailModalOpen(true);
-        break;
-      case 'archive':
-        handleBulkArchiveSubmit();
-        break;
-      case 'export':
-        handleBulkExportSubmit();
-        break;
-      default:
-        break;
-    }
-  }, [handleBulkArchiveSubmit, handleBulkExportSubmit]);
+    const map = {
+      changeClass: () => setIsBulkClassModalOpen(true),
+      sendEmail:   () => setIsBulkEmailModalOpen(true),
+      archive:     () => handleBulkArchiveSubmit(),
+      export:      () => setIsExportDialogOpen(true),
+    };
+    map[action]?.();
+  }, [handleBulkArchiveSubmit]);
 
-  // ========================================
-  // RENDER HELPERS
-  // ========================================
+  // ============================================================
+  // SMALL INTERNAL COMPONENTS
+  // ============================================================
 
-  // Empty State Component
-  const EmptyState = ({ title, description, actionText, onAction }) => (
+  const ArchiveToggle = () => (
+    <FormControlLabel
+      control={
+        <Switch
+          checked={includeArchived}
+          onChange={(e) => { setIncludeArchived(e.target.checked); setPage(0); }}
+          color="secondary"
+        />
+      }
+      label={<Typography variant="body2" sx={{ fontWeight: 500 }}>Show Archived</Typography>}
+    />
+  );
+
+  const EmptyState = () => (
     <Box sx={{ textAlign: 'center', py: 8, px: 2 }}>
       <Inbox sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
       <Typography variant="h6" color="text.secondary" gutterBottom>
-        {title || `No ${entityNamePlural.toLowerCase()} found`}
+        No {entityNamePlural.toLowerCase()} found
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        {description || `Try adjusting your filters or add a new ${entityName.toLowerCase()}.`}
+        Try adjusting your filters or add a new {entityName.toLowerCase()}.
       </Typography>
-      {onAction && (
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={onAction}
-          sx={{ borderRadius: 2 }}
-        >
-          {actionText || `Add ${entityName}`}
-        </Button>
-      )}
+      <Button variant="contained" startIcon={<Add />} onClick={() => handleOpenFormModal()} sx={{ borderRadius: 2 }}>
+        Add {entityName}
+      </Button>
     </Box>
   );
 
-  // Mobile Card Component
   const MobileCard = ({ entity }) => (
     <Card elevation={2} sx={{ borderRadius: 2, transition: 'all 0.2s', '&:hover': { boxShadow: theme.shadows[4] } }}>
       <CardContent>
         <Stack direction="row" spacing={2} alignItems="flex-start">
           <Checkbox checked={isSelected(entity._id)} onChange={() => handleSelectOne(entity._id)} sx={{ mt: -1 }} />
-          <Stack spacing={1} flex={1}>
+          <Stack spacing={0.5} flex={1}>
             <Typography variant="subtitle2" fontWeight={600}>
-              {entity.firstName} {entity.lastName || entity.name || 'Entity'}
+              {entity.firstName} {entity.lastName || entity.name || ''}
             </Typography>
             {entity.email && (
-              <Typography variant="caption" color="text.secondary">
-                {entity.email}
-              </Typography>
+              <Typography variant="caption" color="text.secondary">{entity.email}</Typography>
             )}
           </Stack>
         </Stack>
       </CardContent>
       <Divider />
       <CardActions sx={{ justifyContent: 'flex-end', px: 2 }}>
-        <IconButton size="small" onClick={() => handleOpenDrawer(entity)} sx={{ color: 'primary.main' }}>
-          <Visibility fontSize="small" />
-        </IconButton>
-        <IconButton size="small" onClick={() => handleOpenFormModal(entity)} sx={{ color: 'info.main' }}>
-          <Edit fontSize="small" />
-        </IconButton>
-        <IconButton size="small" onClick={() => handleArchive(entity._id)} sx={{ color: 'error.main' }}>
-          <Delete fontSize="small" />
-        </IconButton>
+        <IconButton size="small" onClick={() => handleOpenDrawer(entity)}    sx={{ color: 'primary.main' }}><Visibility fontSize="small" /></IconButton>
+        <IconButton size="small" onClick={() => handleOpenFormModal(entity)} sx={{ color: 'info.main'    }}><Edit      fontSize="small" /></IconButton>
+        <IconButton size="small" onClick={() => handleArchive(entity._id)}   sx={{ color: 'error.main'   }}><Delete    fontSize="small" /></IconButton>
       </CardActions>
     </Card>
   );
 
-  // ========================================
+  // ============================================================
   // RENDER
-  // ========================================
+  // ============================================================
 
   return (
     <Box component="main" sx={{ py: { xs: 2, sm: 4, md: 6 } }}>
       <Container maxWidth="xl">
         <Stack spacing={{ xs: 3, md: 4 }}>
-          {/* Header */}
-          <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
+
+          {/* ── Header ── */}
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            justifyContent="space-between"
+            spacing={2}
+            alignItems={{ xs: 'stretch', sm: 'center' }}
+          >
             <Box>
               <Typography variant={isXs ? 'h5' : 'h4'} fontWeight={700} gutterBottom>
                 {entityNamePlural} Management
@@ -427,10 +375,19 @@ const GenericEntityPage = ({
               </Typography>
             </Box>
 
-            {/* Desktop Actions */}
+            {/* Archive toggle – mobile */}
+            {isXs && showArchiveToggle && (
+              <Box><ArchiveToggle /></Box>
+            )}
+
+            {/* Actions – desktop */}
             {!isXs && (
-              <Stack direction="row" spacing={1}>
-                {/*Import/Export Buttons */}
+              <Stack direction="row" spacing={1} alignItems="center">
+                {showArchiveToggle && <ArchiveToggle />}
+
+                {/* Extra actions slot (e.g. "Manage Departments") */}
+                {extraHeaderActions}
+
                 {(enableImport || enableExport) && (
                   <IconButton
                     onClick={(e) => setMoreMenuAnchor(e.currentTarget)}
@@ -439,7 +396,7 @@ const GenericEntityPage = ({
                     <MoreVert />
                   </IconButton>
                 )}
-                
+
                 <Button
                   startIcon={addButtonIcon || <Add />}
                   variant="contained"
@@ -452,10 +409,10 @@ const GenericEntityPage = ({
             )}
           </Stack>
 
-          {/* KPI Cards */}
+          {/* ── KPIs ── */}
           <KPICards metrics={metrics} loading={kpiLoading} />
 
-          {/* Filters */}
+          {/* ── Filters ── */}
           <FilterBar
             searchValue={search}
             onSearchChange={setSearch}
@@ -466,11 +423,11 @@ const GenericEntityPage = ({
             searchPlaceholder={searchPlaceholder || `Search ${entityNamePlural.toLowerCase()}...`}
           />
 
-          {/* Bulk Actions Bar */}
+          {/* ── Bulk action bar ── */}
           {hasSelection && (
             <Paper elevation={3} sx={{ p: 2, borderRadius: 2, bgcolor: 'primary.lighter' }}>
               <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
-                <Typography variant="body2" fontWeight={600} noWrap sx={{ textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                <Typography variant="body2" fontWeight={600} noWrap>
                   {selectedCount} selected
                 </Typography>
                 <Stack direction="row" spacing={1}>
@@ -479,7 +436,6 @@ const GenericEntityPage = ({
                     startIcon={!isXs && <SwapHoriz />}
                     onClick={(e) => setBulkMenuAnchor(e.currentTarget)}
                     disabled={processing}
-                    sx={{ minWidth: isXs ? 'auto' : undefined }}
                   >
                     {isXs ? 'Actions' : 'Bulk Actions'}
                   </Button>
@@ -491,7 +447,7 @@ const GenericEntityPage = ({
             </Paper>
           )}
 
-          {/* Content - Responsive */}
+          {/* ── Content ── */}
           {loading ? (
             <Paper elevation={3} sx={{ borderRadius: 3, p: 2 }}>
               <Stack spacing={2}>
@@ -501,47 +457,25 @@ const GenericEntityPage = ({
               </Stack>
             </Paper>
           ) : entities.length === 0 ? (
-            <Paper elevation={3} sx={{ borderRadius: 3 }}>
-              <EmptyState
-                title={`No ${entityNamePlural.toLowerCase()} found`}
-                description={`Try adjusting your filters or add a new ${entityName.toLowerCase()}.`}
-                actionText={`Add ${entityName}`}
-                onAction={() => handleOpenFormModal()}
-              />
-            </Paper>
+            <Paper elevation={3} sx={{ borderRadius: 3 }}><EmptyState /></Paper>
           ) : isMobile ? (
             <Stack spacing={2}>
-              {entities.map((entity) => (
-                <MobileCard key={entity._id} entity={entity} />
-              ))}
+              {entities.map((entity) => <MobileCard key={entity._id} entity={entity} />)}
             </Stack>
           ) : (
             <Paper elevation={3} sx={{ borderRadius: 3, overflow: 'hidden' }}>
-              <TableContainer 
-                sx={{ 
-                  overflowX: 'auto', 
-                  maxWidth: '100%', 
-                  '&::-webkit-scrollbar': { 
-                    height: 8, 
-                  }, 
-                  '&::-webkit-scrollbar-track': { 
-                    bgcolor: 'grey.100' 
-                  }, 
-                  '&::-webkit-scrollbar-thumb': { 
-                    bgcolor: 'grey.400', 
-                    borderRadius: 4, 
-                    '&:hover': { 
-                      bgcolor: 'grey.600' 
-                    },
-                  }, 
-                }}
-              >
+              <TableContainer sx={{
+                overflowX: 'auto',
+                '&::-webkit-scrollbar': { height: 8 },
+                '&::-webkit-scrollbar-track': { bgcolor: 'grey.100' },
+                '&::-webkit-scrollbar-thumb': { bgcolor: 'grey.400', borderRadius: 4, '&:hover': { bgcolor: 'grey.600' } },
+              }}>
                 <Table sx={{ minWidth: 650 }}>
                   <TableHead sx={{ bgcolor: 'background.neutral' }}>
                     <TableRow>
                       <TableCell padding="checkbox">
                         <Checkbox
-                          checked={selectedIds.length === entities.length}
+                          checked={selectedIds.length > 0 && selectedIds.length === entities.length}
                           indeterminate={selectedIds.length > 0 && selectedIds.length < entities.length}
                           onChange={(e) => handleSelectAll(e.target.checked)}
                         />
@@ -556,10 +490,10 @@ const GenericEntityPage = ({
                   <TableBody>
                     {entities.map((entity) =>
                       renderTableRow(entity, {
-                        selected: isSelected(entity._id),
-                        onSelect: () => handleSelectOne(entity._id),
-                        onView: () => handleOpenDrawer(entity),
-                        onEdit: () => handleOpenFormModal(entity),
+                        selected:  isSelected(entity._id),
+                        onSelect:  () => handleSelectOne(entity._id),
+                        onView:    () => handleOpenDrawer(entity),
+                        onEdit:    () => handleOpenFormModal(entity),
                         onArchive: () => handleArchive(entity._id),
                         theme,
                         isMobile,
@@ -573,39 +507,30 @@ const GenericEntityPage = ({
                 component="div"
                 count={total}
                 page={page}
-                onPageChange={(e, newPage) => setPage(newPage)}
+                onPageChange={(_, newPage) => setPage(newPage)}
                 rowsPerPage={rowsPerPage}
                 onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
                 rowsPerPageOptions={[5, 10, 25, 50]}
-                sx={{ 
-                  '.MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows': { 
-                  fontSize: { xs: '0.75rem', sm: '0.875rem' } 
-                  }, 
-                }}
+                sx={{ '.MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows': { fontSize: { xs: '0.75rem', sm: '0.875rem' } } }}
               />
             </Paper>
           )}
         </Stack>
       </Container>
 
-      {/* Floating Action Button - Mobile Only */}
+      {/* ── FAB (mobile) ── */}
       {isXs && (
-        <Fab 
-          color="primary" 
-          aria-label="add" 
-          onClick={() => handleOpenFormModal()} 
+        <Fab
+          color="primary"
+          onClick={() => handleOpenFormModal()}
           sx={{ position: 'fixed', bottom: { xs: 80, sm: 16 }, right: 16, zIndex: 1000 }}
         >
           <Add />
         </Fab>
       )}
 
-      {/*  More Menu (Import/Export) */}
-      <Menu 
-        anchorEl={moreMenuAnchor} 
-        open={Boolean(moreMenuAnchor)} 
-        onClose={() => setMoreMenuAnchor(null)}
-      >
+      {/* ── Import / Export menu ── */}
+      <Menu anchorEl={moreMenuAnchor} open={Boolean(moreMenuAnchor)} onClose={() => setMoreMenuAnchor(null)}>
         {enableImport && (
           <MenuItem onClick={() => { setIsImportDialogOpen(true); setMoreMenuAnchor(null); }}>
             <FileUpload sx={{ mr: 1 }} /> Import
@@ -618,64 +543,53 @@ const GenericEntityPage = ({
         )}
       </Menu>
 
-      {/* Form Modal */}
-      <Dialog 
-        open={isFormModalOpen} 
-        onClose={() => setIsFormModalOpen(false)} 
-        maxWidth="md" 
-        fullWidth 
+      {/* ── Form modal ── */}
+      <Dialog
+        open={isFormModalOpen}
+        onClose={() => setIsFormModalOpen(false)}
+        maxWidth="md"
+        fullWidth
         fullScreen={isXs}
+        disableEnforceFocus
+        closeAfterTransition={false}
+        aria-labelledby="form-modal"
       >
-        <DialogTitle sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        <DialogTitle id="form-modal" sx={{ borderBottom: 1, borderColor: 'divider' }}>
           {selectedEntity ? `Edit ${entityName}` : `Add New ${entityName}`}
-          <IconButton 
-            onClick={() => setIsFormModalOpen(false)} 
-            sx={{ position: 'absolute', right: 8, top: 8 }}
-          >
+          <IconButton onClick={() => setIsFormModalOpen(false)} sx={{ position: 'absolute', right: 8, top: 8 }}>
             <Close />
           </IconButton>
         </DialogTitle>
         <DialogContent sx={{ mt: 2 }}>
           {FormComponent && (
-            <FormComponent 
-              initialData={selectedEntity} 
-              onSuccess={handleFormSuccess} 
-              onCancel={() => setIsFormModalOpen(false)} 
+            <FormComponent
+              initialData={selectedEntity}
+              onSuccess={handleFormSuccess}
+              onCancel={() => setIsFormModalOpen(false)}
             />
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Detail Drawer */}
-      <Drawer 
-        anchor="right" 
-        open={isDrawerOpen} 
-        onClose={() => setIsDrawerOpen(false)} 
-        sx={{ 
-            '& .MuiDrawer-paper': { 
-              width: { xs: '100%', sm: 400, md: 450 }, 
-              maxWidth: '90vw' 
-            }, 
-          }}
-        >
+      {/* ── Detail drawer ── */}
+      <Drawer
+        anchor="right"
+        open={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        sx={{ '& .MuiDrawer-paper': { width: { xs: '100%', sm: 400, md: 450 }, maxWidth: '90vw' } }}
+      >
         {viewEntity && DetailComponent && (
           <DetailComponent
             entity={viewEntity}
             open={isDrawerOpen}
             onClose={() => setIsDrawerOpen(false)}
-            onEdit={() => { 
-              setIsDrawerOpen(false); 
-              handleOpenFormModal(viewEntity); 
-            }}
-            onArchive={() => { 
-              setIsDrawerOpen(false); 
-              handleArchive(viewEntity._id); 
-            }}
+            onEdit={() => { setIsDrawerOpen(false); handleOpenFormModal(viewEntity); }}
+            onArchive={() => { setIsDrawerOpen(false); handleArchive(viewEntity._id); }}
           />
         )}
       </Drawer>
 
-      {/*Export Dialog */}
+      {/* ── Export / Import dialogs ── */}
       {enableExport && (
         <ExportDialog
           open={isExportDialogOpen}
@@ -687,8 +601,6 @@ const GenericEntityPage = ({
           filters={filters}
         />
       )}
-
-      {/* Import Dialog */}
       {enableImport && (
         <ImportDialog
           open={isImportDialogOpen}
@@ -701,137 +613,58 @@ const GenericEntityPage = ({
         />
       )}
 
-      {/* Bulk Class Modal */}
-      <Dialog 
-        open={isBulkClassModalOpen} 
-        onClose={() => setIsBulkClassModalOpen(false)} 
-        maxWidth="sm" 
-        fullWidth 
-        fullScreen={isXs}
-      >
-        <DialogTitle>
-          Change Class for {selectedCount} {entityName}(s)
-          <IconButton 
-            onClick={() => setIsBulkClassModalOpen(false)} 
-            sx={{ position: 'absolute', right: 8, top: 8 }}
-          >
-            <Close />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent>
-          <TextField 
-            select 
-            fullWidth 
-            label="New Class" 
-            value={bulkClassId} 
-            onChange={(e) => setBulkClassId(e.target.value)} 
-            sx={{ mt: 2 }}
-          >
-            {(relatedData.classes || []).map((cls) => (
-              <MenuItem key={cls._id} value={cls._id}>
-                {cls.className}
-              </MenuItem>
-            ))}
-          </TextField>
-        </DialogContent>
-        <Box sx={{ p: 2, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-          <Button onClick={() => setIsBulkClassModalOpen(false)}>Cancel</Button>
-          <Button 
-            variant="contained" 
-            onClick={handleBulkChangeClassSubmit} 
-            disabled={processing}
-          >
-            Change Class
-          </Button>
-        </Box>
-      </Dialog>
+      {/* ── Bulk modals (extracted) ── */}
+      <BulkClassModal
+        open={isBulkClassModalOpen}
+        onClose={() => setIsBulkClassModalOpen(false)}
+        entityName={entityName}
+        selectedCount={selectedCount}
+        classes={relatedData.classes || []}
+        bulkClassId={bulkClassId}
+        setBulkClassId={setBulkClassId}
+        onSubmit={handleBulkChangeClassSubmit}
+        processing={processing}
+        isXs={isXs}
+      />
+      <BulkEmailModal
+        open={isBulkEmailModalOpen}
+        onClose={() => setIsBulkEmailModalOpen(false)}
+        entityName={entityName}
+        selectedCount={selectedCount}
+        bulkEmail={bulkEmail}
+        setBulkEmail={setBulkEmail}
+        onSubmit={handleBulkSendEmailSubmit}
+        processing={processing}
+        isXs={isXs}
+      />
 
-      {/* Bulk Email Modal */}
-      <Dialog 
-        open={isBulkEmailModalOpen} 
-        onClose={() => setIsBulkEmailModalOpen(false)} 
-        maxWidth="sm" 
-        fullWidth 
-        fullScreen={isXs}
-      >
-        <DialogTitle>
-          Send Email to {selectedCount} {entityName}(s)
-          <IconButton 
-            onClick={() => setIsBulkEmailModalOpen(false)} 
-            sx={{ position: 'absolute', right: 8, top: 8 }}
-          >
-            <Close />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 2 }}>
-            <TextField 
-              fullWidth 
-              label="Subject" 
-              value={bulkEmail.subject} 
-              onChange={(e) => setBulkEmail(prev => ({ ...prev, subject: e.target.value }))} 
-            />
-            <TextField 
-              fullWidth 
-              label="Message" 
-              multiline rows={6} 
-              value={bulkEmail.message} 
-              onChange={(e) => setBulkEmail(prev => ({ ...prev, message: e.target.value }))} 
-            />
-          </Stack>
-        </DialogContent>
-        <Box sx={{ p: 2, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-          <Button onClick={() => setIsBulkEmailModalOpen(false)}>Cancel</Button>
-          <Button 
-            variant="contained" 
-            startIcon={<Send />} 
-            onClick={handleBulkSendEmailSubmit} 
-            disabled={processing}
-          >
-              Send
-          </Button>
-        </Box>
-      </Dialog>
-
-      {/* Bulk Actions Menu */}
-      <Menu 
-        anchorEl={bulkMenuAnchor} 
-        open={Boolean(bulkMenuAnchor)} 
-        onClose={() => setBulkMenuAnchor(null)}
-      >
+      {/* ── Bulk actions menu ── */}
+      <Menu anchorEl={bulkMenuAnchor} open={Boolean(bulkMenuAnchor)} onClose={() => setBulkMenuAnchor(null)}>
         {bulkActions.includes('changeClass') && (
-          <MenuItem onClick={() => handleBulkAction('changeClass')}>
-            <SwapHoriz sx={{ mr: 1 }} /> Change Class
-          </MenuItem>
+          <MenuItem onClick={() => handleBulkAction('changeClass')}><SwapHoriz sx={{ mr: 1 }} /> Change Class</MenuItem>
         )}
         {bulkActions.includes('sendEmail') && (
-          <MenuItem onClick={() => handleBulkAction('sendEmail')}>
-            <Email sx={{ mr: 1 }} /> Send Email
-          </MenuItem>
+          <MenuItem onClick={() => handleBulkAction('sendEmail')}><Email sx={{ mr: 1 }} /> Send Email</MenuItem>
         )}
         {bulkActions.includes('archive') && (
-          <MenuItem onClick={() => handleBulkAction('archive')}>
-            <Block sx={{ mr: 1 }} /> Archive
-          </MenuItem>
+          <MenuItem onClick={() => handleBulkAction('archive')}><Block sx={{ mr: 1 }} /> Archive</MenuItem>
         )}
         {bulkActions.includes('export') && (
-          <MenuItem onClick={() => handleBulkAction('export')}>
-            <Download sx={{ mr: 1 }} /> Export
-          </MenuItem>
+          <MenuItem onClick={() => handleBulkAction('export')}><Download sx={{ mr: 1 }} /> Export</MenuItem>
         )}
       </Menu>
 
-      {/* Snackbar */}
+      {/* ── Snackbar ── */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={4000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
         anchorOrigin={{ vertical: 'bottom', horizontal: isXs ? 'center' : 'right' }}
       >
-        <Alert 
-          onClose={() => setSnackbar({ ...snackbar, open: false })} 
-          severity={snackbar.severity} 
-          variant="filled" 
+        <Alert
+          onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+          severity={snackbar.severity}
+          variant="filled"
           sx={{ borderRadius: 2 }}
         >
           {snackbar.message}

@@ -182,6 +182,7 @@ const Classes = () => {
   };
 
   const handleRestore = async (id) => {
+    if (!window.confirm('This class will be restored !')) return;
     try {
       await axios.patch(
         `${API_BASE_URL}/class/${id}/restore`,
@@ -433,7 +434,7 @@ const Classes = () => {
                         <IconButton
                           color="success"
                           size="small"
-                          onClick={() => handleArchive(cls._id)}
+                          onClick={() => handleRestore(cls._id)}
                         >
                           <RestoreIcon fontSize="small" />
                         </IconButton>
@@ -510,7 +511,7 @@ const Classes = () => {
                     autoFocus={!isMobile}
                     label="Class Name"
                     name="className"
-                    value={values.className}
+                    value={values.className || ''}
                     onChange={handleChange}
                     onBlur={handleBlur}
                     error={touched.className && Boolean(errors.className)}
@@ -535,7 +536,7 @@ const Classes = () => {
                   <TextField
                     label="Campus"
                     name="schoolCampus"
-                    value={values.schoolCampus || 'Loading...'}
+                   value={campus ? (campus.campus_name) : (values.schoolCampus || 'Loading...')}
                     fullWidth
                     disabled
                     slotProps={{
@@ -559,7 +560,7 @@ const Classes = () => {
                     select
                     label="Level"
                     name="level"
-                    value={values.level}
+                    value={values.level || ''}
                     onChange={handleChange}
                     onBlur={handleBlur}
                     error={touched.level && Boolean(errors.level)}
@@ -590,7 +591,7 @@ const Classes = () => {
                     type="number"
                     label="Maximum Capacity"
                     name="maxStudents"
-                    value={values.maxStudents}
+                    value={values.maxStudents || 50 }
                     onChange={handleChange}
                     onBlur={handleBlur}
                     error={touched.maxStudents && Boolean(errors.maxStudents)}

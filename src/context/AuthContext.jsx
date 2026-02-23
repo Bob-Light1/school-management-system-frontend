@@ -42,13 +42,13 @@ export function AuthProvider({ children }) {
         body: JSON.stringify(credentials),
       });
 
-      const data = await response.json();
+      const responseData = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
+        throw new Error(responseData.message || 'Login failed');
       }
 
-      const { token, user: userData } = data;
+      const { token, user: userData } = responseData.data;
 
       // Add user type to user data
       const enrichedUserData = {
@@ -66,7 +66,7 @@ export function AuthProvider({ children }) {
 
       console.log('✅ Login successful:', enrichedUserData);
 
-      return data;
+      return responseData;
     } catch (error) {
       console.error('❌ Login error:', error);
       throw error;

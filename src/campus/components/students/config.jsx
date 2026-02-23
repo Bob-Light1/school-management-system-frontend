@@ -86,39 +86,43 @@ export const tableColumns = [
 // ========================================
 // FILTERS CONFIGURATION
 // ========================================
-export const getFilterConfig = (classes = []) => [
-  {
-    key: 'class',
-    label: 'Class',
-    type: 'select',
-    options: [
-      { value: '', label: 'All Classes' },
-      ...classes.map((c) => ({ value: c._id, label: c.className })),
-    ],
-  },
-  {
-    key: 'status',
-    label: 'Status',
-    type: 'select',
-    options: [
-      { value: '', label: 'All Statuses' },
-      { value: 'active', label: 'Active' },
-      { value: 'inactive', label: 'Inactive' },
-      { value: 'suspended', label: 'Suspended' },
-      { value: 'archived', label: 'Archived' },
-    ],
-  },
-  {
-    key: 'gender',
-    label: 'Gender',
-    type: 'select',
-    options: [
-      { value: '', label: 'All Genders' },
-      { value: 'male', label: 'Male' },
-      { value: 'female', label: 'Female' },
-    ],
-  },
-];
+export const getFilterConfig = (relatedData = {}) => {
+  const classes = relatedData.classes || [];
+
+  return [
+    {
+      key: 'studentClass',
+      label: 'Class',
+      type: 'select',
+      options: [
+        { value: '', label: 'All Classes' },
+        ...classes.map((c) => ({ value: c._id, label: c.className })),
+      ],
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      type: 'select',
+      options: [
+        { value: '', label: 'All Statuses' },
+        { value: 'active', label: 'Active' },
+        { value: 'inactive', label: 'Inactive' },
+        { value: 'suspended', label: 'Suspended' },
+        { value: 'archived', label: 'Archived' },
+      ],
+    },
+    {
+      key: 'gender',
+      label: 'Gender',
+      type: 'select',
+      options: [
+        { value: '', label: 'All Genders' },
+        { value: 'male', label: 'Male' },
+        { value: 'female', label: 'Female' },
+      ],
+    },
+  ];
+};
 
 // ========================================
 // TABLE ROW RENDERER
@@ -168,7 +172,7 @@ export const renderTableRow = (student, helpers) => {
       <TableCell>
         <Chip
           icon={<BadgeIcon />}
-          label={student.matricule || 'N/A'}
+          label={student.matricule || 'STD'}
           size="small"
           variant="outlined"
         />

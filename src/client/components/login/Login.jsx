@@ -133,7 +133,8 @@ export default function Login() {
           credentials.email = values.identifier;
         }
 
-        await login(credentials, userType);
+        const result = await login(credentials, userType);
+        const userData = result.data.user;
 
         setSnackbar({
           open: true,
@@ -146,7 +147,7 @@ export default function Login() {
           const fromDestination = state?.from;
 
           const redirectMap = {
-            campus: '/campus',
+            manager: `/campus/${userData.id}`,
             student: '/student',
             teacher: '/teacher',
             parent: '/parent',

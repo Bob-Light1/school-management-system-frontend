@@ -151,6 +151,8 @@ const Subject = () => {
   };
 
   const handleRestore = async (id) => {
+      if (!window.confirm('This subject will be restored !')) return;
+
     try {
       await axios.patch(
         `${API_BASE_URL}/subject/${id}/restore`,

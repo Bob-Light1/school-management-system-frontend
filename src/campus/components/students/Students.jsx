@@ -34,9 +34,15 @@ const Students = () => {
       // Composants UI (REQUIS)
       FormComponent={StudentForm}              
       DetailComponent={StudentDetailDrawer}  
+
+      //Show archived
+      showArchiveToggle={true} 
+
+      // Activate import
+      enableImport={true}  
       
-      enableImport={true}   // Activate inport
-      enableExport={true}   // Activate export
+      // Activate export 
+      enableExport={true}   
     />
   );
 };

@@ -82,7 +82,7 @@ export default function AllCampus() {
       navigate('/login', { state: { from: destination } });
       return;
     }
-  
+    
     navigate(destination);
   };
 
