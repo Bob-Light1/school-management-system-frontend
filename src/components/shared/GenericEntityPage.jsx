@@ -164,7 +164,7 @@ const GenericEntityPage = ({
     ...relatedDataEndpoints,   // config may override or add more
   }), [relatedDataEndpoints]);
 
-  const relatedData = useRelatedData(mergedEndpoints, campusId);
+  const { data: relatedData, loading: relatedDataLoading } = useRelatedData(mergedEndpoints, campusId);
 
   // ============================================================
   // LOCAL UI STATE
@@ -227,8 +227,15 @@ const GenericEntityPage = ({
     setPage(0);
   }, [setFilters, setSearch, setPage]);
 
-  const handleOpenFormModal  = useCallback((entity = null) => { setSelectedEntity(entity); setIsFormModalOpen(true);  }, []);
-  const handleOpenDrawer     = useCallback((entity)        => { setViewEntity(entity);      setIsDrawerOpen(true);    }, []);
+  const handleOpenFormModal  = useCallback((entity = null) => { 
+      setSelectedEntity(entity); 
+      setIsFormModalOpen(true); 
+     }, []);
+
+  const handleOpenDrawer = useCallback((entity) => { 
+      setViewEntity(entity);
+      setIsDrawerOpen(true); 
+    }, []);
 
   const handleArchive = useCallback(async (id) => {
     if (!window.confirm(`Are you sure you want to archive this ${entityName}?`)) return;

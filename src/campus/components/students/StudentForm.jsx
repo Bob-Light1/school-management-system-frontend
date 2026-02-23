@@ -260,11 +260,6 @@ const StudentForm = ({ initialData, onSuccess, onCancel }) => {
     }
   };
 
-  useEffect(() => {
-    document.activeElement?.blur();
-  }, [isEdit]);
-  
-
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>

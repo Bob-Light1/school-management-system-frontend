@@ -273,10 +273,15 @@ export const teacherConfig = {
   bulkActions: ['changeDepartment', 'sendEmail', 'archive', 'export'],
   
   // Related data to fetch
-  relatedDataEndpoints: {
-    departments: '/department',
-    subjects: '/subject',
-  },
+ relatedDataEndpoints: {
+    // Format B — isolation + authorize 
+    departments: (campusId) => `/campus/${campusId}/departments`,
+    classes:     (campusId) => `/campus/${campusId}/classes`,
+
+    // Format A — generic route
+    // subjects: '/subject',
+  }
+
 };
 
 export default teacherConfig;
