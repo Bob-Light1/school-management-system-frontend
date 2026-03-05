@@ -276,11 +276,12 @@ const FilterBar = ({
                       minWidth: 200,
                       flex: { xs: '1 1 100%', sm: '1 1 200px' },
                       '& .MuiOutlinedInput-root': { borderRadius: 2 },
-                    };
+                    }; 
+
+                    const labelId = `filter-${filter.key}-label`;
+                    const inputId = `filter-${filter.key}`;
                     
                     if (filter.type === 'select') {
-                      const labelId = `filter-${filter.key}-label`;
-                      const inputId = `filter-${filter.key}`;
 
                       return (
                         <FormControl key={filter.key} size="small" sx={fieldSx}>
