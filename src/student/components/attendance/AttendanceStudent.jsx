@@ -125,7 +125,7 @@ const AttendanceStudent = () => {
           {/* Rate gauge + KPI cards */}
           <Grid container spacing={3} alignItems="stretch">
             {/* Gauge */}
-            <Grid item xs={12} sm={4} md={3}>
+            <Grid size={{xs: 12, sm: 4, md: 3}}>
               <Paper
                 variant="outlined"
                 sx={{
@@ -174,7 +174,7 @@ const AttendanceStudent = () => {
             </Grid>
 
             {/* KPI cards */}
-            <Grid item xs={12} sm={8} md={9}>
+            <Grid size={{xs: 12, sm: 8, md: 9}}>
               <KPICards metrics={kpis} />
               <Box mt={2}>
                 <AttendanceLinearBar rate={attendanceRate} label="Overall attendance rate" />

@@ -23,36 +23,26 @@ const SESSION_TYPE_COLOR = {
  * Shared between all roles — action buttons are conditionally rendered.
  *
  * Props:
- *   session     – StudentSchedule document (may be null while drawer is closing)
- *   open        – boolean
- *   onClose     – () => void
- *   onEdit      – (session) => void   (shown if showEdit)
- *   onCancel    – (session) => void   (shown if showCancel && status !== CANCELLED)
- *   onPublish   – (session) => void   (shown if showPublish && status === DRAFT)
- *   showEdit    – boolean
- *   showCancel  – boolean
- *   showPublish – boolean
+ *   session      – StudentSchedule / TeacherSchedule document (may be null while closing)
+ *   open         – boolean
+ *   onClose      – () => void
+ *   onEdit       – (session) => void   (shown if showEdit)
+ *   onCancel     – (session) => void   (shown if showCancel && status !== CANCELLED)
+ *   onPublish    – (session) => void   (shown if showPublish && status === DRAFT)
+ *   showEdit     – boolean
+ *   showCancel   – boolean
+ *   showPublish  – boolean
+ *   extraFooter  – ReactNode  — optional slot rendered BELOW the standard action row,
+ *                              inside the sticky footer. Used by teacher-specific drawers
+ *                              to inject roll-call / postponement buttons without
+ *                              forking this shared component.
  *
- * ── aria-hidden focus violation (P3) ─────────────────────────────────────────
- * Root cause: MUI Drawer sets `aria-hidden="true"` on its modal root during the
- * exit transition.  If any descendant still holds browser focus at that instant,
- * browsers log "Blocked aria-hidden on a focused element" (WAI-ARIA §6.6.3).
- *
- * Three complementary defences are applied here:
- *
- *   1. blurBeforeClose() — blur the active element *synchronously before* calling
- *      onClose, so focus leaves the Drawer before MUI touches aria-hidden.
- *      Attached to every close trigger (backdrop, IconButton, Escape key via onClose).
- *
- *   2. disableRestoreFocus — prevents MUI from moving focus back into the Drawer
- *      paper during the exit animation (the paper itself has an implicit tabIndex).
- *
- *   3. disableEnforceFocus — stops MUI's FocusTrap from fighting the blur() call
- *      right before the transition starts.
- *
- *   4. Null guard *inside* the Drawer (not before it) — keeps the Drawer shell
- *      alive for the full exit animation so MUI can clean up its portal safely.
- * ─────────────────────────────────────────────────────────────────────────────
+ * ── aria-hidden focus defence ───────────────────────────────────────────────
+ * 1. blurBeforeClose() — blur the active element synchronously before onClose.
+ * 2. disableRestoreFocus — prevents MUI from moving focus back into the paper.
+ * 3. disableEnforceFocus — stops FocusTrap fighting our blur() call.
+ * 4. Null guard INSIDE the Drawer — keeps the shell alive for the exit animation.
+ * ────────────────────────────────────────────────────────────────────────────
  */
 const ScheduleDetailDrawer = ({
   session,
@@ -64,31 +54,22 @@ const ScheduleDetailDrawer = ({
   showEdit    = false,
   showCancel  = false,
   showPublish = false,
+  extraFooter = null,   // ← new prop: custom ReactNode injected in the footer
 }) => {
-  const theme      = useTheme();
-  const paperRef   = useRef(null);
+  const theme    = useTheme();
+  const paperRef = useRef(null);
 
-  /**
-   * Blur whatever element currently holds focus — called synchronously before
-   * any close action so the browser never sees a focused element inside an
-   * aria-hidden subtree.
-   */
   const blurBeforeClose = useCallback(() => {
     const active = document.activeElement;
-    if (active instanceof HTMLElement) {
-      active.blur();
-    }
+    if (active instanceof HTMLElement) active.blur();
   }, []);
 
-  /** Combined handler for all close paths (backdrop click, Escape key). */
   const handleClose = useCallback(() => {
     blurBeforeClose();
     onClose?.();
   }, [blurBeforeClose, onClose]);
 
-  /** IconButton close — same blur-first pattern. */
   const handleCloseButton = useCallback((e) => {
-    // Blur the button itself before the drawer begins to hide
     e.currentTarget.blur();
     onClose?.();
   }, [onClose]);
@@ -108,49 +89,37 @@ const ScheduleDetailDrawer = ({
   const fmtTime = (d) =>
     d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  // Backend stores joinUrl; meetingUrl is a frontend alias fallback
   const meetingLink =
     session?.virtualMeeting?.joinUrl || session?.virtualMeeting?.meetingUrl;
 
   const canPublish = showPublish && session?.status === 'DRAFT';
   const canCancel  = showCancel  && session?.status !== 'CANCELLED';
 
+  // Footer is rendered when at least one standard action OR extraFooter is present
+  const hasFooter = showEdit || canCancel || canPublish || !!extraFooter;
+
   return (
     <Drawer
       anchor="right"
       open={open}
       onClose={handleClose}
-      // Defence 2: never restore focus back into the paper during exit animation
       disableRestoreFocus
-      // Defence 3: don't let FocusTrap fight our blur() call
       disableEnforceFocus
-      // Defence 4: keep Drawer shell mounted throughout the exit animation
       ModalProps={{ keepMounted: false }}
       slotProps={{
         paper: {
           ref: paperRef,
-          // tabIndex="-1" keeps the paper out of the natural tab order while
-          // still allowing programmatic focus management by MUI internally.
-          // This prevents the paper from stealing focus on open and becoming
-          // the focused element that aria-hidden then blocks on close.
           tabIndex: -1,
           sx: {
             width:         { xs: '100%', sm: 440 },
             display:       'flex',
             flexDirection: 'column',
-            mt:6,
-            // outline:none so tabIndex="-1" doesn't show a focus ring on the paper
+            mt: 6,
             outline: 'none',
           },
         },
       }}
     >
-      {/*
-       * Defence 4 (content guard) — the null check lives HERE, inside the Drawer,
-       * so the Drawer shell is never unmounted while MUI's exit animation runs.
-       * Removing the Drawer from the DOM mid-transition is what originally caused
-       * the aria-hidden violation on the paper element.
-       */}
       {session && (
         <>
           {/* ── Coloured header ─────────────────────────────────────────────── */}
@@ -174,7 +143,6 @@ const ScheduleDetailDrawer = ({
                 </Typography>
               </Box>
 
-              {/* Close button blurs itself first to avoid aria-hidden race */}
               <IconButton
                 onClick={handleCloseButton}
                 size="small"
@@ -241,7 +209,6 @@ const ScheduleDetailDrawer = ({
                 <DetailSection title="Classes">
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                     {session.classes.map((c) => {
-                      // toString() on ObjectId guarantees a valid React key
                       const keyVal    = c.classId?.toString() ?? c._id?.toString() ?? c.className;
                       const chipLabel = c.className || String(c.classId ?? '');
                       return (
@@ -316,54 +283,56 @@ const ScheduleDetailDrawer = ({
             </Stack>
           </Box>
 
-          {/* ── Action footer ────────────────────────────────────────────────── */}
-          {(showEdit || canCancel || canPublish) && (
+          {/* ── Sticky footer ────────────────────────────────────────────────── */}
+          {hasFooter && (
             <Box
               sx={{
                 p:          2,
                 borderTop:  `1px solid ${theme.palette.divider}`,
                 flexShrink: 0,
-                mb: 6,
+                mb:         6,
               }}
             >
-              <Stack 
-                direction="row" 
-                spacing={1} 
-                justifyContent="flex-end"
-              >
-                {canPublish && (
-                  <Button
-                    variant="outlined"
-                    color="success"
-                    startIcon={<CheckCircle />}
-                    onClick={() => onPublish?.(session)}
-                    sx={{ textTransform: 'none' }}
-                  >
-                    Publish
-                  </Button>
-                )}
-                {canCancel && (
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    startIcon={<Cancel />}
-                    onClick={() => onCancel?.(session)}
-                    sx={{ textTransform: 'none' }}
-                  >
-                    Cancel Session
-                  </Button>
-                )}
-                {showEdit && (
-                  <Button
-                    variant="contained"
-                    startIcon={<Edit />}
-                    onClick={() => onEdit?.(session)}
-                    sx={{ textTransform: 'none' }}
-                  >
-                    Edit
-                  </Button>
-                )}
-              </Stack>
+              {/* Standard action row (publish / cancel / edit) */}
+              {(showEdit || canCancel || canPublish) && (
+                <Stack direction="row" spacing={1} justifyContent="flex-end" mb={extraFooter ? 1.5 : 0}>
+                  {canPublish && (
+                    <Button
+                      variant="outlined"
+                      color="success"
+                      startIcon={<CheckCircle />}
+                      onClick={() => onPublish?.(session)}
+                      sx={{ textTransform: 'none' }}
+                    >
+                      Publish
+                    </Button>
+                  )}
+                  {canCancel && (
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      startIcon={<Cancel />}
+                      onClick={() => onCancel?.(session)}
+                      sx={{ textTransform: 'none' }}
+                    >
+                      Cancel Session
+                    </Button>
+                  )}
+                  {showEdit && (
+                    <Button
+                      variant="contained"
+                      startIcon={<Edit />}
+                      onClick={() => onEdit?.(session)}
+                      sx={{ textTransform: 'none' }}
+                    >
+                      Edit
+                    </Button>
+                  )}
+                </Stack>
+              )}
+
+              {/* Extra footer slot — used by teacher-specific drawers */}
+              {extraFooter}
             </Box>
           )}
         </>

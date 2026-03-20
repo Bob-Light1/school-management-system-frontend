@@ -3,18 +3,21 @@
  * @description Attendance page for teachers.
  *
  * Tabs:
- *  1. Roll-call  — pick a session and mark student attendance
- *  2. My Records — personal attendance history (self-service)
+ *  0 — Roll-call   : pick a session and mark student attendance
+ *  1 — My Records  : personal attendance history (self-service)
  *
  * Role: TEACHER
  *
- * Route: registered in teacher routes, e.g. /teacher/attendance
+ * Navigation contract:
+ *   ScheduleTeacher navigates to /teacher/attendance with:
+ *     location.state = { session: <StudentSchedule document> }
+ *   This auto-selects the session and switches to the Roll-call tab.
  */
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Box, Typography, Tabs, Tab, Stack, Paper, Avatar, Chip,
-  Alert, CircularProgress, Grid, Snackbar, Button,
+  Alert, CircularProgress, Snackbar, Button,
   FormControl, InputLabel, Select, MenuItem,
   alpha, useTheme, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow,
@@ -24,27 +27,44 @@ import {
   Cancel, HelpOutline,
 } from '@mui/icons-material';
 
-import KPICards          from '../../../components/shared/KpiCard';
-import useAttendance     from '../../../hooks/useAttendance';
-import useFormSnackbar   from '../../../hooks/useFormSnackBar';
+import KPICards        from '../../../components/shared/KpiCard';
+import useFormSnackbar from '../../../hooks/useFormSnackBar';
 import {
   AttendanceStatusChip,
   AttendanceSummaryBar,
   AttendanceEmptyState,
   AttendanceSelfFilters,
-  AttendanceRateGauge,
   AttendanceLinearBar,
 } from '../../../components/attendance/AttendanceShared';
 import RollCallSheet from '../../../components/attendance/RollCallSheet';
-import { getMyTeacherAttendanceStats } from '../../../services/attendance.service';
+import {
+  getSessionStudentAttendance,
+  initStudentAttendance,
+  toggleStudentAttendance,
+  justifyStudentAbsence,
+  submitStudentAttendance,
+  getMyTeacherAttendance,
+  getMyTeacherAttendanceStats,
+} from '../../../services/attendance.service';
 import { useLocation } from 'react-router-dom';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 const AttendanceTeacher = () => {
-  const [tab, setTab] = useState(0);
   const location = useLocation();
-  const [selectedSession, setSelectedSession] = useState(location.state?.session ?? null);
+
+  // Auto-switch to roll-call tab when navigated here with a session in state
+  const incomingSession = location.state?.session ?? null;
+  const [tab,             setTab]             = useState(incomingSession ? 0 : 0);
+  const [selectedSession, setSelectedSession] = useState(incomingSession);
+
+  // When the user navigates back here with a different session, update state
+  useEffect(() => {
+    if (location.state?.session) {
+      setSelectedSession(location.state.session);
+      setTab(0);
+    }
+  }, [location.state?.session?._id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 } }}>
@@ -64,152 +84,210 @@ const AttendanceTeacher = () => {
           '& .MuiTabs-indicator': { height: 3, borderRadius: 2 },
         }}
       >
-        <Tab value={0} label="Roll-call" icon={<HowToReg />} iconPosition="start" />
-        <Tab value={1} label="My Attendance" icon={<History />} iconPosition="start" />
+        <Tab value={0} label="Roll-call"     icon={<HowToReg />} iconPosition="start" />
+        <Tab value={1} label="My Attendance" icon={<History />}  iconPosition="start" />
       </Tabs>
 
-      <TeacherRollCallTab
-        initialSession={selectedSession}
-        onSessionClear={() => setSelectedSession(null)}
-      />
-      {tab === 1 && <TeacherSelfTab />}
+      {/* Always mount both tabs but only show the active one */}
+      <Box display={tab === 0 ? 'block' : 'none'}>
+        <TeacherRollCallTab
+          selectedSession={selectedSession}
+          onSessionClear={() => setSelectedSession(null)}
+        />
+      </Box>
+      <Box display={tab === 1 ? 'block' : 'none'}>
+        <TeacherSelfTab />
+      </Box>
     </Box>
   );
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TEACHER ROLL-CALL TAB
-// Shows today's/upcoming sessions; teacher selects one to open roll-call
+// ROLL-CALL TAB
+// Manages all API calls directly (no useAttendance hook) for precision control.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const TeacherRollCallTab = ({ initialSession = null }) => {
+const TeacherRollCallTab = ({ selectedSession, onSessionClear }) => {
   const theme = useTheme();
   const { snackbar, showSnackbar, closeSnackbar } = useFormSnackbar();
 
-  // We load the teacher's schedule (from useSchedule) via a local fetch
-  // to list sessions available for roll-call — then open the roll-call sheet
-  // for the selected session.
-  const [selectedSession, setSelectedSession] = useState(initialSession);
+  const [records,  setRecords]  = useState([]);
+  const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState(null);
 
-  const ctxParams = useMemo(() => ({
-    scheduleId: selectedSession?._id,
-    date:       selectedSession?.startTime
-      ? new Date(selectedSession.startTime).toISOString().slice(0, 10)
-      : undefined,
-    classId: selectedSession?.class?._id || selectedSession?.class,
-  }), [selectedSession]);
+  // Derive the first class and a stable date string from the session
+  const sessionClassId = useMemo(() => {
+    if (!selectedSession) return null;
+    // StudentSchedule stores classes as [{classId, className}]
+    // The controller also accepts a flat `class._id` from older formats
+    return (
+      selectedSession.classes?.[0]?.classId?._id
+      || selectedSession.classes?.[0]?.classId
+      || selectedSession.class?._id
+      || selectedSession.class
+      || null
+    );
+  }, [selectedSession]);
 
-  const {
-    records, summary, loading, error,
-    initSession, toggleStudent, justifyStudent, submitSession, fetch,
-  } = useAttendance('teacher-rollcall', ctxParams);
+  const attendanceDateISO = useMemo(() => {
+    if (!selectedSession?.startTime) return null;
+    return new Date(selectedSession.startTime).toISOString().slice(0, 10);
+  }, [selectedSession?.startTime]);
+
+  // Fetch existing attendance records whenever the session changes
+  const loadRecords = useCallback(async () => {
+    if (!selectedSession?._id) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await getSessionStudentAttendance(selectedSession._id, {
+        date:    attendanceDateISO,
+        classId: sessionClassId,
+      });
+      const raw = res.data?.data ?? res.data;
+      setRecords(Array.isArray(raw) ? raw : []);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load attendance records.');
+      setRecords([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedSession?._id, attendanceDateISO, sessionClassId]);
+
+  useEffect(() => {
+    loadRecords();
+  }, [loadRecords]);
+
+  // ── Mutations ──────────────────────────────────────────────────────────────
 
   const handleInit = useCallback(async (scheduleId, payload) => {
-    try {
-      await initSession(scheduleId, payload);
-      showSnackbar('Attendance sheet initialised.', 'success');
-    } catch {
-      showSnackbar('Failed to initialise attendance sheet.', 'error');
-    }
-  }, [initSession, showSnackbar]);
+    await initStudentAttendance(scheduleId, payload);
+    await loadRecords();
+  }, [loadRecords]);
 
   const handleToggle = useCallback(async (attendanceId, status) => {
-    try {
-      await toggleStudent(attendanceId, status);
-    } catch {
-      showSnackbar('Failed to update attendance.', 'error');
-    }
-  }, [toggleStudent, showSnackbar]);
+    await toggleStudentAttendance(attendanceId, { status });
+    await loadRecords();
+  }, [loadRecords]);
 
   const handleJustify = useCallback(async (attendanceId, payload) => {
-    try {
-      await justifyStudent(attendanceId, payload);
-      showSnackbar('Justification saved.', 'success');
-    } catch {
-      showSnackbar('Failed to save justification.', 'error');
-    }
-  }, [justifyStudent, showSnackbar]);
+    await justifyStudentAbsence(attendanceId, payload);
+    showSnackbar('Justification saved.', 'success');
+    await loadRecords();
+  }, [loadRecords, showSnackbar]);
 
   const handleSubmit = useCallback(async (scheduleId, date, classId) => {
-    try {
-      await submitSession(scheduleId, date, classId);
-      showSnackbar('Attendance sheet locked successfully.', 'success');
-    } catch {
-      showSnackbar('Failed to lock attendance sheet.', 'error');
-    }
-  }, [submitSession, showSnackbar]);
+    await submitStudentAttendance(scheduleId, {
+      attendanceDate: date,
+      classId,
+    });
+    showSnackbar('Attendance sheet locked successfully.', 'success');
+    await loadRecords();
+  }, [loadRecords, showSnackbar]);
+
+  // ── Summary computed locally ───────────────────────────────────────────────
+
+  const summary = useMemo(() => {
+    const total     = records.length;
+    const present   = records.filter((r) => r.status === true).length;
+    const absent    = records.filter((r) => r.status === false).length;
+    const justified = records.filter((r) => r.isJustified).length;
+    const locked    = records.filter((r) => r.isLocked).length;
+    const rate      = total > 0 ? Math.round((present / total) * 100) : 0;
+    return { total, present, absent, justified, locked, rate };
+  }, [records]);
+
+  // ── No session selected ────────────────────────────────────────────────────
+
+  if (!selectedSession) {
+    return (
+      <Paper
+        sx={{
+          p: 4, textAlign: 'center', borderRadius: 3,
+          bgcolor: alpha(theme.palette.primary.main, 0.03),
+          border: `2px dashed ${alpha(theme.palette.primary.main, 0.2)}`,
+        }}
+      >
+        <HowToReg sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
+        <Typography variant="h6" fontWeight={700} mb={1}>
+          No session selected
+        </Typography>
+        <Typography variant="body2" color="text.secondary" mb={2}>
+          Go to your <strong>Schedule</strong>, open a session and click{' '}
+          <strong>"Start Roll-call"</strong> to begin.
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          The "Start Roll-call" button appears on past and in-progress published sessions.
+        </Typography>
+      </Paper>
+    );
+  }
+
+  // ── Session header ─────────────────────────────────────────────────────────
+
+  const subjectName = selectedSession.subject?.subject_name
+    || selectedSession.subject?.name
+    || selectedSession.subject
+    || 'Session';
+
+  const className = selectedSession.classes?.[0]?.className
+    || selectedSession.class?.className
+    || selectedSession.class
+    || '—';
 
   return (
     <Box>
-      {/* Session picker — in a real app this uses the teacher's schedule list */}
-      <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
-        Select a session from your schedule to open the roll-call. Sessions are listed in
-        the <strong>Schedule</strong> section. Clicking <em>"Open Roll-call"</em> from a
-        session card will navigate here with the session pre-selected.
-      </Alert>
+      {/* Session info banner */}
+      <Paper variant="outlined" sx={{ p: 2, mb: 3, borderRadius: 2 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }} justifyContent="space-between">
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Avatar sx={{ bgcolor: 'primary.main' }}>
+              <CalendarMonth />
+            </Avatar>
+            <Box>
+              <Typography variant="h6" fontWeight={700}>{subjectName}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {className}
+                {selectedSession.startTime && ` · ${new Date(selectedSession.startTime).toLocaleString('en-GB', {
+                  weekday: 'short', day: 'numeric', month: 'short',
+                  hour: '2-digit', minute: '2-digit',
+                })}`}
+              </Typography>
+            </Box>
+          </Stack>
+          <Button size="small" variant="outlined" color="inherit" onClick={onSessionClear}>
+            Change session
+          </Button>
+        </Stack>
+      </Paper>
 
-      {selectedSession ? (
-        <Box>
-          {/* Session header */}
-          <Paper variant="outlined" sx={{ p: 2, mb: 3, borderRadius: 2 }}>
-            <Stack direction="row" spacing={2} alignItems="center">
-              <Avatar sx={{ bgcolor: 'primary.main' }}>
-                <CalendarMonth />
-              </Avatar>
-              <Box flex={1}>
-                <Typography variant="h6" fontWeight={700}>
-                  {selectedSession.subject?.name || selectedSession.subject}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {selectedSession.class?.className || selectedSession.class} ·{' '}
-                  {selectedSession.startTime
-                    ? new Date(selectedSession.startTime).toLocaleString('en-GB', {
-                        weekday: 'short', day: 'numeric', month: 'short',
-                        hour: '2-digit', minute: '2-digit',
-                      })
-                    : ''}
-                </Typography>
-              </Box>
-              <Button size="small" onClick={() => setSelectedSession(null)}>
-                Change session
-              </Button>
-            </Stack>
-          </Paper>
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      <RollCallSheet
+        session={{
+          ...selectedSession,
+          // Normalise: RollCallSheet expects session.class and session.subject as objects
+          class:   { _id: sessionClassId, className },
+          subject: {
+            _id:  selectedSession.subject?.subjectId || selectedSession.subject?._id || selectedSession.subject,
+            name: subjectName,
+          },
+        }}
+        records={records}
+        loading={loading}
+        summary={summary}
+        onInit={handleInit}
+        onToggle={handleToggle}
+        onJustify={handleJustify}
+        onSubmit={handleSubmit}
+      />
 
-          <RollCallSheet
-            session={selectedSession}
-            records={records}
-            loading={loading}
-            summary={summary}
-            onInit={handleInit}
-            onToggle={handleToggle}
-            onJustify={handleJustify}
-            onSubmit={handleSubmit}
-          />
-        </Box>
-      ) : (
-        <Paper
-          sx={{
-            p: 4, textAlign: 'center', borderRadius: 3,
-            bgcolor: alpha(theme.palette.primary.main, 0.03),
-            border: `2px dashed ${alpha(theme.palette.primary.main, 0.2)}`,
-          }}
-        >
-          <HowToReg sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
-          <Typography variant="h6" fontWeight={700} mb={1}>
-            No session selected
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Go to your <strong>Schedule</strong>, open a session and click{' '}
-            <strong>"Start Roll-call"</strong> to begin.
-          </Typography>
-        </Paper>
-      )}
-
-      <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={closeSnackbar}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={closeSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
         <Alert onClose={closeSnackbar} severity={snackbar.severity} variant="filled" sx={{ borderRadius: 2 }}>
           {snackbar.message}
         </Alert>
@@ -219,18 +297,39 @@ const TeacherRollCallTab = ({ initialSession = null }) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TEACHER SELF-SERVICE TAB
-// Teacher views their own attendance history and stats
+// SELF-SERVICE TAB — teacher's own attendance history
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TeacherSelfTab = () => {
   const theme = useTheme();
 
-  const { records, loading, error, filters, handleFilterChange } =
-    useAttendance('teacher-self');
-
-  const [statsData, setStatsData] = useState(null);
+  const [filters,      setFilters]      = useState({ academicYear: '', semester: '', period: 'all' });
+  const [records,      setRecords]      = useState([]);
+  const [statsData,    setStatsData]    = useState(null);
+  const [loading,      setLoading]      = useState(false);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [error,        setError]        = useState(null);
+
+  const handleFilterChange = (key, value) =>
+    setFilters((prev) => ({ ...prev, [key]: value }));
+
+  const loadAttendance = useCallback(async () => {
+    if (!filters.academicYear || !filters.semester) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await getMyTeacherAttendance({
+        academicYear: filters.academicYear,
+        semester:     filters.semester,
+      });
+      const raw = res.data?.data ?? res.data;
+      setRecords(Array.isArray(raw) ? raw : []);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load attendance records.');
+    } finally {
+      setLoading(false);
+    }
+  }, [filters.academicYear, filters.semester]);
 
   const loadStats = useCallback(async () => {
     if (!filters.academicYear || !filters.semester) return;
@@ -247,19 +346,35 @@ const TeacherSelfTab = () => {
     }
   }, [filters.academicYear, filters.semester, filters.period]);
 
+  const handleLoad = () => {
+    loadAttendance();
+    loadStats();
+  };
+
   const kpis = statsData ? [
     { key: 'total',   label: 'Total Sessions', value: statsData.totalSessions,  icon: <CalendarMonth />, color: theme.palette.grey[700] },
     { key: 'present', label: 'Present',        value: statsData.presentCount,   icon: <CheckCircle />,   color: theme.palette.success.main },
     { key: 'absent',  label: 'Absent',         value: statsData.absentCount,    icon: <Cancel />,        color: theme.palette.error.main },
-    { key: 'hours',   label: 'Total Hours',    value: `${(statsData.totalHours ?? 0).toFixed(1)}h`, icon: <History />, color: theme.palette.secondary.main },
+    { key: 'hours',   label: 'Total Hours',
+      value: `${(statsData.totalHours ?? 0).toFixed(1)}h`,
+      icon: <History />, color: theme.palette.secondary.main },
   ] : [];
 
   return (
     <Box>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={3} alignItems="flex-end" flexWrap="wrap">
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={2} mb={3}
+        alignItems={{ sm: 'flex-end' }}
+        flexWrap="wrap"
+      >
         <AttendanceSelfFilters filters={filters} onChange={handleFilterChange} />
-        <Button variant="outlined" onClick={loadStats} disabled={!filters.academicYear || !filters.semester}>
-          Load Stats
+        <Button
+          variant="contained"
+          onClick={handleLoad}
+          disabled={!filters.academicYear || !filters.semester || loading}
+        >
+          {loading ? <CircularProgress size={18} color="inherit" /> : 'Load Records'}
         </Button>
       </Stack>
 
@@ -287,7 +402,7 @@ const TeacherSelfTab = () => {
         <AttendanceEmptyState
           message={
             !filters.academicYear
-              ? 'Select an academic year and semester to load your attendance records.'
+              ? 'Select an academic year and semester, then click "Load Records".'
               : 'No attendance records found for this period.'
           }
         />
