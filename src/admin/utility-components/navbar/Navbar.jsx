@@ -24,7 +24,7 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 
 const NAV_LINKS = [
   { href: '/',          label: 'Home'     },
-  { href: '/admin/login',     label: 'login'    },
+  { href: '/admin/login',     label: 'Login'    },
   { href: '/admin/newcampus', label: 'Create'   },
 ];
 
