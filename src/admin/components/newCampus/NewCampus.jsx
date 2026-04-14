@@ -12,7 +12,7 @@
  *   - FormControl + InputLabel + OutlinedInput pattern preserved throughout.
  */
 
-import { useState }              from 'react';
+import { useState, useEffect }   from 'react';
 import { useNavigate }           from 'react-router-dom';
 import { useFormik }             from 'formik';
 import {
@@ -51,6 +51,11 @@ export default function NewCampus() {
   const [isLoading,    setIsLoading]     = useState(false);
   const [activeStep,   setActiveStep]   = useState(0);
   const [snackbar,     setSnackbar]      = useState({ open: false, message: '', severity: 'success' });
+
+  // ── Server wake-up ping (Render free tier sleeps after inactivity) ────────────
+  useEffect(() => {
+    axios.get(`${API_BASE_URL}/ping`, { timeout: 10000 }).catch(() => {/* silent */});
+  }, []);
 
   // ── Formik ──────────────────────────────────────────────────────────────────
 
@@ -97,7 +102,7 @@ export default function NewCampus() {
             'Content-Type':  'multipart/form-data',
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
           },
-          timeout: 30000, // 30 s — prevents infinite spinner if server hangs
+          timeout: 90000, // 90 s — covers Render cold start (50-90 s) + Cloudinary upload
         });
 
         setSnackbar({ open: true, message: '✨ Campus created successfully!', severity: 'success' });
