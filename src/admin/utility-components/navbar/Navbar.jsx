@@ -26,6 +26,7 @@ const NAV_LINKS = [
   { href: '/',          label: 'Home'     },
   { href: '/admin/login',     label: 'Login'    },
   { href: '/admin/newcampus', label: 'Create'   },
+  { href: '/admin/create', label: 'newAdmin'},
 ];
 
 // ─── SVG Logo mark ────────────────────────────────────────────────────────────
