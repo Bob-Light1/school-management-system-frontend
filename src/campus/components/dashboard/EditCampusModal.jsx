@@ -97,7 +97,7 @@ export default function EditCampusModal({ open, handleClose, campusData, onUpdat
             {/* Preview & Upload Image */}
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
               <Avatar 
-                src={formik.values.image ? URL.createObjectURL(formik.values.image) : `${IMAGE_BASE_URL}${campusData?.campus_image}`}
+                src={formik.values.image ? URL.createObjectURL(formik.values.image) : (campusData?.campus_image?.startsWith('http') ? campusData.campus_image : `${IMAGE_BASE_URL}${campusData?.campus_image}`)}
                 sx={{ width: 80, height: 80 }}
               />
               <Button variant="text" component="label" startIcon={<PhotoCamera />} size="small">

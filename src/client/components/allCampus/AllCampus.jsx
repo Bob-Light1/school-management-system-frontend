@@ -331,7 +331,7 @@ export default function AllCampus() {
                       component="img"
                       image={
                         campus.campus_image
-                          ? `${IMAGE_BASE_URL}/uploads/campuses/${campus.campus_image}`
+                          ? (campus.campus_image.startsWith('http') ? campus.campus_image : `${IMAGE_BASE_URL}/uploads/campuses/${campus.campus_image}`)
                           : '/hotel.jpg'
                       }
                       alt={campus.campus_name}
@@ -466,7 +466,7 @@ export default function AllCampus() {
               <motion.img
                 src={
                   selectedCampus?.campus_image
-                    ? `${IMAGE_BASE_URL}/uploads/campuses/${selectedCampus.campus_image}`
+                    ? (selectedCampus.campus_image.startsWith('http') ? selectedCampus.campus_image : `${IMAGE_BASE_URL}/uploads/campuses/${selectedCampus.campus_image}`)
                     : '/hotel.jpg'
                 }
                 alt={selectedCampus?.campus_name}
