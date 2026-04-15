@@ -51,10 +51,30 @@ export default function NewCampus() {
   const [isLoading,    setIsLoading]     = useState(false);
   const [activeStep,   setActiveStep]   = useState(0);
   const [snackbar,     setSnackbar]      = useState({ open: false, message: '', severity: 'success' });
+  const [serverReady,  setServerReady]  = useState(false);
 
-  // ── Server wake-up ping (Render free tier sleeps after inactivity) ────────────
+  // ── Server + DB wake-up (Render free tier sleeps after inactivity) ──────────
+  // Polls /api/health which makes a real MongoDB ping, so serverReady=true only
+  // when both the Node process AND the database are confirmed responsive.
   useEffect(() => {
-    axios.get(`${API_BASE_URL}/ping`, { timeout: 10000 }).catch(() => {/* silent */});
+    let cancelled = false;
+    const wake = async () => {
+      for (let attempt = 1; attempt <= 8; attempt++) {
+        try {
+          const { data } = await axios.get(`${API_BASE_URL}/health`, { timeout: 20000 });
+          if (data.database === 'connected') {
+            if (!cancelled) setServerReady(true);
+            return;
+          }
+        } catch {
+          // server still waking up — keep retrying
+        }
+      }
+      // After 8 attempts (~2.5 min) allow submit anyway so the user isn't stuck
+      if (!cancelled) setServerReady(true);
+    };
+    wake();
+    return () => { cancelled = true; };
   }, []);
 
   // ── Formik ──────────────────────────────────────────────────────────────────
@@ -104,7 +124,7 @@ export default function NewCampus() {
             'Content-Type':  'application/json',
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
           },
-          timeout: 15000, // image already on Cloudinary — only DB write remains
+          timeout: 60000, // Render free tier cold start can take up to 60 s
         });
 
         setSnackbar({ open: true, message: '✨ Campus created successfully!', severity: 'success' });
@@ -493,8 +513,8 @@ export default function NewCampus() {
 
                   {activeStep === STEPS.length - 1 ? (
                     <Button
-                      type="submit" variant="contained" disabled={isLoading}
-                      endIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : <CheckCircle />}
+                      type="submit" variant="contained" disabled={isLoading || !serverReady}
+                      endIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : !serverReady ? <CircularProgress size={20} color="inherit" /> : <CheckCircle />}
                       sx={{
                         borderRadius: 2, px: 4, py: 1.5,
                         fontWeight: 'bold', textTransform: 'none',
@@ -503,7 +523,7 @@ export default function NewCampus() {
                         '&:hover': { boxShadow: '0 8px 28px rgba(0,50,133,0.45)' },
                       }}
                     >
-                      {isLoading ? 'Creating…' : 'Create Campus'}
+                      {isLoading ? 'Creating…' : !serverReady ? 'Connecting…' : 'Create Campus'}
                     </Button>
                   ) : (
                     <Button
