@@ -1,13 +1,32 @@
-import React from 'react'
+import GenericEntityPage from '../../../components/shared/GenericEntityPage';
+import { parentConfig }  from './parentConfig';
+import ParentForm         from './ParentForm';
+import ParentDetailDrawer from './ParentDetailDrawer';
 
-const Parents = () => {
-  return (
-    <div>
-      <h1 className='h-10 flex items-center justify-center bg-pink-200 text-md text-center font-bold'>
-        PARENT'S PAGE IS STILL IN DEVELOPMENT MODE !
-      </h1>
-    </div>
-  )
-}
+/**
+ * Parents management page — accessible by ADMIN, DIRECTOR, CAMPUS_MANAGER.
+ * Mounted inside the campus layout at /campus/:campusId/parents.
+ *
+ * All orchestration (fetching, pagination, filters, CRUD dialogs, bulk actions,
+ * KPI cards) is handled by GenericEntityPage; this component is intentionally thin.
+ */
+const Parents = () => (
+  <GenericEntityPage
+    entityName={parentConfig.entityName}
+    entityNamePlural={parentConfig.entityNamePlural}
+    apiEndpoint={parentConfig.apiEndpoint}
+    tableColumns={parentConfig.tableColumns}
+    renderTableRow={parentConfig.renderTableRow}
+    filterConfig={parentConfig.getFilterConfig}
+    searchPlaceholder={parentConfig.searchPlaceholder}
+    getKPIMetrics={parentConfig.getKPIMetrics}
+    bulkActions={parentConfig.bulkActions}
+    FormComponent={ParentForm}
+    DetailComponent={ParentDetailDrawer}
+    showArchiveToggle={true}
+    enableImport={false}
+    enableExport={true}
+  />
+);
 
-export default Parents
+export default Parents;

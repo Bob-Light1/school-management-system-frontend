@@ -28,7 +28,12 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 // ── Nav icons ──────────────────────────────────────────────────────────────
 import HomeIcon               from '@mui/icons-material/Home';
 import DashboardCustomizeIcon from '@mui/icons-material/DashboardCustomize';
-import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import ChildCareIcon     from '@mui/icons-material/ChildCare';
+import TrendingUpIcon    from '@mui/icons-material/TrendingUp';
+import AccessTimeIcon    from '@mui/icons-material/AccessTime';
+import EventNoteIcon     from '@mui/icons-material/EventNote';
+import DescriptionIcon   from '@mui/icons-material/Description';
 
 import AppNavBar from '../components/AppNavBar';
 import Loader    from '../components/Loader';
@@ -100,8 +105,14 @@ export default function Parent() {
   const [open, setOpen] = React.useState(false);
 
   const navItems = [
-    { link: '/',                      label: 'Home',         icon: HomeIcon },
-    { link: '/parent',                label: 'My Details',   icon: DashboardCustomizeIcon },
+    { link: '/',                          label: 'Home',         icon: HomeIcon               },
+    { link: '/parent',                    label: 'Dashboard',    icon: DashboardCustomizeIcon  },
+    { link: '/parent/profile',            label: 'My Profile',   icon: AccountCircleIcon       },
+    { link: '/parent/children',           label: 'My Children',  icon: ChildCareIcon           },
+    { link: '/parent/children/results',   label: 'Results',      icon: TrendingUpIcon          },
+    { link: '/parent/children/attendance',label: 'Attendance',   icon: AccessTimeIcon          },
+    { link: '/parent/children/schedule',  label: 'Schedule',     icon: EventNoteIcon           },
+    { link: '/parent/children/transcripts',label:'Transcripts',  icon: DescriptionIcon         },
   ];
 
   return (
@@ -162,7 +173,9 @@ export default function Parent() {
                     </ListItemIcon>
                     <ListItemText
                       primary={item.label}
-                      primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isActive ? 600 : 400 }}
+                      slotProps={{
+                        primary: { fontSize: '0.875rem', fontWeight: isActive ? 600 : 400 },
+                      }}
                       sx={[open ? { opacity: 1 } : { opacity: 0 }]}
                     />
                   </ListItemButton>
