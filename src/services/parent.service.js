@@ -16,7 +16,7 @@ import api from '../api/axiosInstance';
 /**
  * POST /parents
  * Create a new parent account.
- * @param {Object} data - Parent fields (JSON — no file upload on create)
+ * @param {FormData} data - Multipart form data (fields + optional profileImage)
  */
 export const createParent = (data) =>
   api.post('/parents', data);
@@ -40,8 +40,8 @@ export const getParentById = (id) =>
 /**
  * PUT /parents/:id
  * Update a parent's profile (admin-facing).
- * @param {string} id
- * @param {Object} data
+ * @param {string}   id
+ * @param {FormData} data - Multipart form data (fields + optional profileImage)
  */
 export const updateParent = (id, data) =>
   api.put(`/parents/${id}`, data);

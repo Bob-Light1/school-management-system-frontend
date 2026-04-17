@@ -109,10 +109,10 @@ export default function Parent() {
     { link: '/parent',                    label: 'Dashboard',    icon: DashboardCustomizeIcon  },
     { link: '/parent/profile',            label: 'My Profile',   icon: AccountCircleIcon       },
     { link: '/parent/children',           label: 'My Children',  icon: ChildCareIcon           },
-    { link: '/parent/children/results',   label: 'Results',      icon: TrendingUpIcon          },
-    { link: '/parent/children/attendance',label: 'Attendance',   icon: AccessTimeIcon          },
-    { link: '/parent/children/schedule',  label: 'Schedule',     icon: EventNoteIcon           },
-    { link: '/parent/children/transcripts',label:'Transcripts',  icon: DescriptionIcon         },
+    { link: '/parent/components/children/results',   label: 'Results',      icon: TrendingUpIcon          },
+    { link: '/parent/components/children/attendance',label: 'Attendance',   icon: AccessTimeIcon          },
+    { link: '/parent/components/children/schedule',  label: 'Schedule',     icon: EventNoteIcon           },
+    { link: '/parent/components/children/transcripts',label:'Transcripts',  icon: DescriptionIcon         },
   ];
 
   return (

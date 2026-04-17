@@ -85,6 +85,11 @@ export const createParentSchema = (isEdit = false) =>
       .notRequired(),
 
     schoolCampus: Yup.string().required('Campus is required'),
+
+    children: Yup.array()
+      .of(Yup.string())
+      .max(10, 'A parent can be linked to at most 10 children')
+      .notRequired(),
   });
 
 export default createParentSchema;
