@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Paper, Stack, Chip, Avatar, CircularProgress,
-  Alert, Divider, MenuItem, Select, FormControl, InputLabel, Grid,
+  Alert, Divider, MenuItem, Select, FormControl, InputLabel,
 } from '@mui/material';
 import {
   ArrowBack, EventNote, AccessTime, Videocam, MeetingRoom,
@@ -130,10 +130,10 @@ const SessionCard = ({ session }) => {
               <AccessTime sx={{ fontSize: 14 }} />
               {formatTime(session.startTime)} — {formatTime(session.endTime)}
             </Typography>
-            {session.room && (
+            {session.room?.code && (
               <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <MeetingRoom sx={{ fontSize: 14 }} />
-                Room {session.room}
+                {session.room.code}{session.room.building ? ` · ${session.room.building}` : ''}
               </Typography>
             )}
             {session.teacher && (
