@@ -26,6 +26,7 @@ const Parents = () => (
     showArchiveToggle={true}
     enableImport={false}
     enableExport={true}
+    kpiEndpoint="/parents/stats/campus/:campusId"
   />
 );
 

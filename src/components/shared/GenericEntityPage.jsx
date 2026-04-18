@@ -104,6 +104,7 @@ const GenericEntityPage = ({
   enableExport = true,
   relatedDataEndpoints = {},
   extraHeaderActions = null,    // Optional ReactNode rendered next to Add button
+  kpiEndpoint,                  // Optional override for the KPI fetch URL
 }) => {
   const { campusId } = useParams();
   const theme = useTheme();
@@ -135,7 +136,7 @@ const GenericEntityPage = ({
     setPage,
     rowsPerPage,
     setRowsPerPage,
-  } = useEntityManager({ apiEndpoint, campusId, initialRowsPerPage: 10 });
+  } = useEntityManager({ apiEndpoint, campusId, initialRowsPerPage: 10, kpiEndpoint });
 
   const {
     selectedIds,

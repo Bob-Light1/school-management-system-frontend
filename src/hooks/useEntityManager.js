@@ -10,10 +10,11 @@ import api from '../api/axiosInstance'
  * @param {Number} options.initialRowsPerPage - Lignes par page par défaut (10)
  */
 
-const useEntityManager = ({ 
-  apiEndpoint, 
+const useEntityManager = ({
+  apiEndpoint,
   campusId,
-  initialRowsPerPage = 10 
+  initialRowsPerPage = 10,
+  kpiEndpoint,        // optional override; defaults to /campus/:campusId/dashboard
 }) => {
   // ========================================
   // STATE
@@ -38,10 +39,14 @@ const useEntityManager = ({
   // ========================================
   const fetchKPIs = useCallback(async () => {
     if (!campusId) return;
-    
+
     setKpiLoading(true);
     try {
-      const res = await api.get(`/campus/${campusId}/dashboard`);
+      const url = kpiEndpoint
+        ? kpiEndpoint.replace(':campusId', campusId)
+        : `/campus/${campusId}/dashboard`;
+
+      const res = await api.get(url);
 
       if (res.data && res.data.success) {
         setKpis(res.data.data);
@@ -52,7 +57,7 @@ const useEntityManager = ({
     } finally {
       setKpiLoading(false);
     }
-  }, [apiEndpoint, campusId]);
+  }, [campusId, kpiEndpoint]);
 
   // ========================================
   // FETCH ENTITIES
