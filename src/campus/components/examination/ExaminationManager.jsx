@@ -29,7 +29,7 @@ import {
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 
-import { handleSubmitError } from '../../../utils/handleSubmitError';
+import { getSubmitErrorMessage } from '../../../utils/handleSubmitError';
 import api from '../../../api/axiosInstance';
 
 import * as examService from '../../../services/examination.service';
@@ -124,7 +124,7 @@ const SessionFormDialog = ({ open, onClose, onSuccess, session, relatedData }) =
         }
         onSuccess(isEdit ? 'Session updated.' : 'Session created.');
       } catch (err) {
-        handleSubmitError(err, setErrors);
+        setErrors({ submit: getSubmitErrorMessage(err) });
       } finally {
         setSubmitting(false);
       }
