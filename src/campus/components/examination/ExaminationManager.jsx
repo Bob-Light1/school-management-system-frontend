@@ -10,7 +10,7 @@
  *  - Analytics  : Campus KPIs, early-warning list, export
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useContext } from 'react';
 import {
   Box, Typography, Grid, Button, Stack, Chip, Alert,
   Table, TableHead, TableRow, TableCell, TableBody,
@@ -30,6 +30,7 @@ import { useFormik } from 'formik';
 import * as Yup from 'yup';
 
 import { getSubmitErrorMessage } from '../../../utils/handleSubmitError';
+import { AuthContext } from '../../../context/AuthContext';
 import api from '../../../api/axiosInstance';
 
 import * as examService from '../../../services/examination.service';
@@ -705,6 +706,9 @@ const EnrollmentsDialog = ({ open, onClose, session }) => {
 
 const ExaminationManager = () => {
 
+  const { user } = useContext(AuthContext);
+  const campusId = user?.campusId ?? user?.schoolCampus ?? '';
+
   // ── Tab state ──────────────────────────────────────────────────────────────
   const [tab, setTab] = useState(0);
 
@@ -757,20 +761,25 @@ const ExaminationManager = () => {
 
   const loadRelatedData = useCallback(async () => {
     try {
+      const params = campusId ? { campusId } : {};
       const [subRes, teachRes, classRes] = await Promise.all([
-        api.get('/subject').catch(() => ({ data: {} })),
-        api.get('/teachers').catch(() => ({ data: {} })),
-        api.get('/class').catch(() => ({ data: {} })),
+        api.get('/subject',   { params }).catch(() => ({ data: {} })),
+        api.get('/teachers',  { params }).catch(() => ({ data: {} })),
+        api.get('/class',     { params }).catch(() => ({ data: {} })),
       ]);
+      const pick = (res) => {
+        const d = res.data?.data;
+        return Array.isArray(d) ? d : (d ? [d] : []);
+      };
       setRelatedData({
-        subjects: subRes.data?.data?.subjects || subRes.data?.data || [],
-        teachers: teachRes.data?.data?.teachers || teachRes.data?.data || [],
-        classes:  classRes.data?.data?.classes  || classRes.data?.data  || [],
+        subjects: pick(subRes),
+        teachers: pick(teachRes),
+        classes:  pick(classRes),
       });
     } catch {
       // silent
     }
-  }, []);
+  }, [campusId]);
 
   useEffect(() => { if (tab === 0) loadSessions(); }, [tab, loadSessions]);
   useEffect(() => { loadRelatedData(); }, [loadRelatedData]);
