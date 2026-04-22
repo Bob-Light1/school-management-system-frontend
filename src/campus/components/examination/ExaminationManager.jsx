@@ -758,7 +758,7 @@ const ExaminationManager = () => {
   const loadRelatedData = useCallback(async () => {
     try {
       const [subRes, teachRes, classRes] = await Promise.all([
-        api.get('/subjects').catch(() => ({ data: {} })),
+        api.get('/subject').catch(() => ({ data: {} })),
         api.get('/teachers').catch(() => ({ data: {} })),
         api.get('/class').catch(() => ({ data: {} })),
       ]);
