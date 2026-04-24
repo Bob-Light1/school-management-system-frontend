@@ -459,7 +459,7 @@ const ExamStudent = () => {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
       <Typography variant="h5" fontWeight={700} mb={3}>Examination</Typography>
 
       <Paper sx={{ mb: 3 }}>
@@ -484,6 +484,7 @@ const ExamStudent = () => {
               <IconButton onClick={loadSessions} disabled={sessionsLoading}><Refresh /></IconButton>
             </Tooltip>
           </Box>
+          <Box sx={{ overflowX: 'auto' }}>
           <Table>
             <TableHead>
               <TableRow>
@@ -545,6 +546,7 @@ const ExamStudent = () => {
               )}
             </TableBody>
           </Table>
+          </Box>
           <TablePagination
             component="div" count={sessionsTotal} page={sessionsPage}
             rowsPerPage={10} rowsPerPageOptions={[10]}
@@ -582,6 +584,7 @@ const ExamStudent = () => {
               <IconButton onClick={loadResults} disabled={resultsLoading}><Refresh /></IconButton>
             </Tooltip>
           </Box>
+          <Box sx={{ overflowX: 'auto' }}>
           <Table>
             <TableHead>
               <TableRow>
@@ -654,6 +657,7 @@ const ExamStudent = () => {
               )}
             </TableBody>
           </Table>
+          </Box>
           <TablePagination
             component="div" count={resultsTotal} page={resultsPage}
             rowsPerPage={10} rowsPerPageOptions={[10]}
@@ -670,6 +674,7 @@ const ExamStudent = () => {
               <IconButton onClick={loadAppeals} disabled={appealsLoading}><Refresh /></IconButton>
             </Tooltip>
           </Box>
+          <Box sx={{ overflowX: 'auto' }}>
           <Table>
             <TableHead>
               <TableRow>
@@ -713,6 +718,7 @@ const ExamStudent = () => {
               )}
             </TableBody>
           </Table>
+          </Box>
           <TablePagination
             component="div" count={appealsTotal} page={appealsPage}
             rowsPerPage={10} rowsPerPageOptions={[10]}

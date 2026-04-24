@@ -192,6 +192,7 @@ const StudentAttendanceTab = () => {
         <AttendanceEmptyState message="No student attendance records found for this period." />
       ) : (
         <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+          <Box sx={{ overflowX: 'auto' }}>
           <Table size="small">
             <TableHead>
               <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.06) }}>
@@ -260,6 +261,7 @@ const StudentAttendanceTab = () => {
               ))}
             </TableBody>
           </Table>
+          </Box>
           <TablePagination
             component="div"
             count={pagination.total || records.length}
@@ -405,6 +407,7 @@ const TeacherAttendanceTab = () => {
         <AttendanceEmptyState message="No teacher attendance records found for this period." />
       ) : (
         <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+          <Box sx={{ overflowX: 'auto' }}>
           <Table size="small">
             <TableHead>
               <TableRow sx={{ bgcolor: alpha(theme.palette.secondary.main, 0.06) }}>
@@ -484,6 +487,7 @@ const TeacherAttendanceTab = () => {
               ))}
             </TableBody>
           </Table>
+          </Box>
           <TablePagination
             component="div"
             count={pagination.total || records.length}
@@ -602,6 +606,7 @@ const PayrollDialog = ({ open, onClose }) => {
 
         {report.length > 0 && (
           <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+            <Box sx={{ overflowX: 'auto' }}>
             <Table size="small">
               <TableHead>
                 <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.06) }}>
@@ -637,6 +642,7 @@ const PayrollDialog = ({ open, onClose }) => {
                 ))}
               </TableBody>
             </Table>
+            </Box>
           </TableContainer>
         )}
 

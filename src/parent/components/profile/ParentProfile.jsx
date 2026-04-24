@@ -320,7 +320,7 @@ const ParentProfile = () => {
   }[parent.preferredLanguage] ?? parent.preferredLanguage;
 
   return (
-    <Box sx={{ p: 3, maxWidth: 900, mx: 'auto' }}>
+    <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 }, maxWidth: 900, mx: 'auto' }}>
 
       {/* ── Profile Card ───────────────────────────────────────────────────── */}
       <Paper elevation={3} sx={{ borderRadius: 3, overflow: 'hidden', mb: 3 }}>

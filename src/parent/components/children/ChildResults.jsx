@@ -135,7 +135,7 @@ const ChildResults = () => {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
       <ChildHeader
         student={student}
         children={children}
@@ -174,7 +174,7 @@ const ChildResults = () => {
       </Stack>
 
       {/* Table */}
-      <Paper elevation={2} sx={{ borderRadius: 2, overflow: 'hidden' }}>
+      <Paper elevation={2} sx={{ borderRadius: 2 }}>
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>
             <CircularProgress />
@@ -188,6 +188,7 @@ const ChildResults = () => {
           </Box>
         ) : (
           <>
+            <Box sx={{ overflowX: 'auto' }}>
             <Table size="small">
               <TableHead>
                 <TableRow sx={{ bgcolor: 'action.hover' }}>
@@ -246,6 +247,7 @@ const ChildResults = () => {
                 ))}
               </TableBody>
             </Table>
+            </Box>
             <TablePagination
               component="div"
               count={total}

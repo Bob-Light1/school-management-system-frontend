@@ -307,7 +307,7 @@ const ParentDashboard = () => {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
 
       {/* Welcome header */}
       <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>

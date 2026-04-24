@@ -223,9 +223,9 @@ export default function CampusDashboard() {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4 }}>
+    <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3, md: 4 }, px: { xs: 1.5, sm: 3 } }}>
       {/* Page Title */}
-      <Typography variant="h4" sx={{ mb: 4, fontWeight: 700, color: '#2c3e50' }}>
+      <Typography variant="h4" sx={{ mb: { xs: 2, md: 4 }, fontWeight: 700, color: '#2c3e50', fontSize: { xs: '1.4rem', sm: '2rem', md: '2.125rem' } }}>
         Campus Dashboard
       </Typography>
 

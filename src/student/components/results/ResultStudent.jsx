@@ -83,6 +83,7 @@ const SemesterBlock = ({ semData }) => (
       </Stack>
     </AccordionSummary>
     <AccordionDetails sx={{ p: 0 }}>
+      <Box sx={{ overflowX: 'auto' }}>
       <Table size="small">
         <TableHead>
           <TableRow sx={{ bgcolor: 'grey.50' }}>
@@ -126,6 +127,7 @@ const SemesterBlock = ({ semData }) => (
           ))}
         </TableBody>
       </Table>
+      </Box>
     </AccordionDetails>
   </Accordion>
 );

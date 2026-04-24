@@ -195,6 +195,7 @@ const SnapshotDialog = ({ open, onClose, session }) => {
             {itemAnalysis.length > 0 && (
               <>
                 <Typography variant="subtitle2" fontWeight={600} mb={1}>Item Analysis</Typography>
+                <Box sx={{ overflowX: 'auto' }}>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
@@ -219,6 +220,7 @@ const SnapshotDialog = ({ open, onClose, session }) => {
                     ))}
                   </TableBody>
                 </Table>
+                </Box>
               </>
             )}
           </>
@@ -352,7 +354,7 @@ const ExamTeacher = () => {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
       <Typography variant="h5" fontWeight={700} mb={3}>Examination</Typography>
 
       <Paper sx={{ mb: 3 }}>
@@ -371,6 +373,7 @@ const ExamTeacher = () => {
               <IconButton onClick={loadSessions} disabled={sessionsLoading}><Refresh /></IconButton>
             </Tooltip>
           </Box>
+          <Box sx={{ overflowX: 'auto' }}>
           <Table>
             <TableHead>
               <TableRow>
@@ -422,6 +425,7 @@ const ExamTeacher = () => {
               )}
             </TableBody>
           </Table>
+          </Box>
           <TablePagination
             component="div" count={sessionsTotal} page={sessionsPage}
             rowsPerPage={10} rowsPerPageOptions={[10]}
@@ -456,6 +460,7 @@ const ExamTeacher = () => {
           </Paper>
 
           <Paper>
+            <Box sx={{ overflowX: 'auto' }}>
             <Table>
               <TableHead>
                 <TableRow>
@@ -501,6 +506,7 @@ const ExamTeacher = () => {
                 )}
               </TableBody>
             </Table>
+            </Box>
             <TablePagination
               component="div" count={gradingsTotal} page={gradingsPage}
               rowsPerPage={10} rowsPerPageOptions={[10]}
@@ -518,6 +524,7 @@ const ExamTeacher = () => {
               <IconButton onClick={loadAppeals} disabled={appealsLoading}><Refresh /></IconButton>
             </Tooltip>
           </Box>
+          <Box sx={{ overflowX: 'auto' }}>
           <Table>
             <TableHead>
               <TableRow>
@@ -572,6 +579,7 @@ const ExamTeacher = () => {
               )}
             </TableBody>
           </Table>
+          </Box>
           <TablePagination
             component="div" count={appealsTotal} page={appealsPage}
             rowsPerPage={10} rowsPerPageOptions={[10]}

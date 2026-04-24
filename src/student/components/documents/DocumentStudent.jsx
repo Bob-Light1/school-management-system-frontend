@@ -169,6 +169,7 @@ const DocumentStudent = () => {
             {!loading && documents.map(renderCard)}
           </Box>
         ) : (
+          <Box sx={{ overflowX: 'auto' }}>
           <Table size="small" stickyHeader>
             <TableHead>
               <TableRow>
@@ -264,6 +265,7 @@ const DocumentStudent = () => {
               ))}
             </TableBody>
           </Table>
+          </Box>
         )}
 
         <TablePagination

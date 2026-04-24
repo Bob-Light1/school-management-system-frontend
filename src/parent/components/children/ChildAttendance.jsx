@@ -145,7 +145,7 @@ const ChildAttendance = () => {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
       <ChildHeader student={student} children={children} onSelect={handleSelect} onBack={handleBack} />
 
       {/* Summary KPIs */}

@@ -525,6 +525,7 @@ const ResultTeacher = () => {
               subtext="All students passed, or no results found for the selected filters."
             />
           ) : (
+            <Box sx={{ overflowX: 'auto' }}>
             <Table size="small">
               <TableHead>
                 <TableRow sx={{ bgcolor: 'grey.50' }}>
@@ -554,6 +555,7 @@ const ResultTeacher = () => {
                 ))}
               </TableBody>
             </Table>
+            </Box>
           )}
         </Paper>
       )}

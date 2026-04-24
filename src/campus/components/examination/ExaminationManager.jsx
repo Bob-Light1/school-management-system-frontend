@@ -978,10 +978,10 @@ const ExaminationManager = () => {
   // ══════════════════════════════════════════════════════════════════════════
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
       {/* Header */}
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h5" fontWeight={700}>Examination Management</Typography>
+        <Typography variant="h5" fontWeight={700} sx={{ fontSize: { xs: '1.15rem', sm: '1.5rem' } }}>Examination Management</Typography>
       </Stack>
 
       {/* Tabs */}
@@ -1077,6 +1077,7 @@ const ExaminationManager = () => {
 
           {/* Sessions table */}
           <Paper>
+            <Box sx={{ overflowX: 'auto' }}>
             <Table>
               <TableHead>
                 <TableRow>
@@ -1197,6 +1198,7 @@ const ExaminationManager = () => {
                 )}
               </TableBody>
             </Table>
+            </Box>
             <TablePagination
               component="div"
               count={sessionsTotal}
@@ -1249,6 +1251,7 @@ const ExaminationManager = () => {
           </Paper>
 
           <Paper>
+            <Box sx={{ overflowX: 'auto' }}>
             <Table>
               <TableHead>
                 <TableRow>
@@ -1295,6 +1298,7 @@ const ExaminationManager = () => {
                 )}
               </TableBody>
             </Table>
+            </Box>
             <TablePagination
               component="div" count={gradingsTotal} page={gradingsPage}
               rowsPerPage={10} rowsPerPageOptions={[10]}
@@ -1336,6 +1340,7 @@ const ExaminationManager = () => {
           </Paper>
 
           <Paper>
+            <Box sx={{ overflowX: 'auto' }}>
             <Table>
               <TableHead>
                 <TableRow>
@@ -1396,6 +1401,7 @@ const ExaminationManager = () => {
                 )}
               </TableBody>
             </Table>
+            </Box>
             <TablePagination
               component="div" count={appealsTotal} page={appealsPage}
               rowsPerPage={10} rowsPerPageOptions={[10]}
@@ -1469,6 +1475,7 @@ const ExaminationManager = () => {
                 Early Warning — At-Risk Students
               </Typography>
               <Paper>
+                <Box sx={{ overflowX: 'auto' }}>
                 <Table>
                   <TableHead>
                     <TableRow>
@@ -1507,6 +1514,7 @@ const ExaminationManager = () => {
                     )}
                   </TableBody>
                 </Table>
+                </Box>
                 <TablePagination
                   component="div" count={earlyWarningTotal} page={earlyWarningPage}
                   rowsPerPage={10} rowsPerPageOptions={[10]}
