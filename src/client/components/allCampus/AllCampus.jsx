@@ -459,10 +459,12 @@ export default function AllCampus() {
             borderRadius: 5,
             boxShadow: '0 40px 80px rgba(0,0,0,0.5)',
             overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
           }}>
 
             {/* Header image */}
-            <Box sx={{ position: 'relative', height: 260, overflow: 'hidden' }}>
+            <Box sx={{ position: 'relative', height: { xs: 180, sm: 220, md: 260 }, overflow: 'hidden', flexShrink: 0 }}>
               <motion.img
                 src={
                   selectedCampus?.campus_image
@@ -512,8 +514,8 @@ export default function AllCampus() {
               </Box>
             </Box>
 
-            {/* Info rows */}
-            <Box sx={{ p: 3.5 }}>
+            {/* Info rows — scrollable */}
+            <Box sx={{ p: 3.5, flex: 1, overflowY: 'auto' }}>
               <Typography variant="h6" sx={{
                 fontWeight: 700, mb: 2.5,
                 background: 'linear-gradient(135deg, #ffda78 0%, #ff7f3e 100%)',
@@ -561,35 +563,42 @@ export default function AllCampus() {
                 ))}
               </Box>
 
-              {/* Actions */}
-              <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
-                <Button
-                  fullWidth variant="contained"
-                  onClick={() => { handleClose(); handleVisitCampus(selectedCampus?._id); }}
-                  sx={{
-                    background: 'linear-gradient(135deg, #2a629a 0%, #4989c8 100%)',
-                    borderRadius: 2.5, py: 1.4, fontWeight: 600,
-                    textTransform: 'none', fontSize: '0.95rem',
-                    boxShadow: '0 4px 16px rgba(42,98,154,0.4)',
-                    '&:hover': { boxShadow: '0 6px 24px rgba(42,98,154,0.5)' },
-                  }}
-                >
-                  Visit Campus
-                </Button>
-                <Button
-                  fullWidth variant="outlined"
-                  onClick={handleClose}
-                  sx={{
-                    borderRadius: 2.5, py: 1.4, fontWeight: 600,
-                    textTransform: 'none', fontSize: '0.95rem',
-                    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
-                    color: 'rgba(255,255,255,0.7)',
-                    '&:hover': { borderColor: 'rgba(255,255,255,0.35)', bgcolor: 'rgba(255,255,255,0.05)' },
-                  }}
-                >
-                  Close
-                </Button>
-              </Box>
+            </Box>
+
+            {/* Actions — sticky footer, always visible regardless of scroll */}
+            <Box sx={{
+              flexShrink: 0,
+              display: 'flex', gap: 2,
+              px: 3.5, pb: 3, pt: 2,
+              borderTop: '1px solid rgba(255,255,255,0.08)',
+              background: '#001845',
+            }}>
+              <Button
+                fullWidth variant="contained"
+                onClick={() => { handleClose(); handleVisitCampus(selectedCampus?._id); }}
+                sx={{
+                  background: 'linear-gradient(135deg, #2a629a 0%, #4989c8 100%)',
+                  borderRadius: 2.5, py: 1.4, fontWeight: 600,
+                  textTransform: 'none', fontSize: '0.95rem',
+                  boxShadow: '0 4px 16px rgba(42,98,154,0.4)',
+                  '&:hover': { boxShadow: '0 6px 24px rgba(42,98,154,0.5)' },
+                }}
+              >
+                Visit Campus
+              </Button>
+              <Button
+                fullWidth variant="outlined"
+                onClick={handleClose}
+                sx={{
+                  borderRadius: 2.5, py: 1.4, fontWeight: 600,
+                  textTransform: 'none', fontSize: '0.95rem',
+                  borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+                  color: 'rgba(255,255,255,0.7)',
+                  '&:hover': { borderColor: 'rgba(255,255,255,0.35)', bgcolor: 'rgba(255,255,255,0.05)' },
+                }}
+              >
+                Close
+              </Button>
             </Box>
           </Box>
         </MotionDiv>
