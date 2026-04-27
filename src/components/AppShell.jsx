@@ -148,20 +148,24 @@ const AppShell = ({ navItems = [], drawerLabel = '', pageTitle = '' }) => {
 
       <List>
         {navItems.map((item) => {
-          const isActive =
-            item.link === '/'
+          // Use label as key — it is always unique and stable across state changes,
+          // unlike item.link which can be null/duplicate for async-driven navItems
+          // (e.g. Parent portal before firstChildId resolves).
+          const isActive = item.link
+            ? item.link === '/'
               ? location.pathname === '/'
-              : location.pathname === item.link;
+              : location.pathname === item.link
+            : false;
 
           return (
             <ListItem
-              key={item.link ?? item.label}
+              key={item.label}
               disablePadding
               sx={{ display: 'block' }}
             >
               <Tooltip title={showText ? '' : item.label} placement="right">
                 <ListItemButton
-                  onClick={() => !item.disabled && handleNavigate(item.link)}
+                  onClick={() => item.link && !item.disabled && handleNavigate(item.link)}
                   selected={isActive}
                   disabled={item.disabled}
                   sx={[

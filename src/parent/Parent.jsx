@@ -28,8 +28,10 @@ export default function Parent() {
       .catch(() => {});
   }, []);
 
+  // Returns null when no child is known yet — AppShell treats null link as
+  // non-navigable (isActive=false, click blocked) regardless of disabled state.
   const childLink = (section) =>
-    firstChildId ? `/parent/children/${firstChildId}/${section}` : '/parent';
+    firstChildId ? `/parent/children/${firstChildId}/${section}` : null;
 
   const navItems = [
     { link: '/',                     label: 'Home',       icon: HomeIcon,               disabled: false },
