@@ -12,19 +12,20 @@
  *  /campus/attendance  → <Attendance /> renders this component
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   Box, Typography, Tabs, Tab, Stack, Chip, Button,
-  Alert, CircularProgress, Paper, Grid, Snackbar,
+  Alert, CircularProgress, Paper, Snackbar,
   alpha, useTheme, Dialog, DialogTitle, DialogContent,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  IconButton, Tooltip, TablePagination, TextField, InputAdornment,
+  IconButton, Tooltip, TablePagination, TextField,
   FormControl, InputLabel, Select, MenuItem,
-  DialogActions,
+  DialogActions, Autocomplete,
 } from '@mui/material';
 import {
-  People, School, Lock, Refresh, Search,
-  CheckCircle, Cancel, HelpOutline, AttachMoney, Visibility,
+  People, School, Refresh,
+  CheckCircle, Cancel, HelpOutline, AttachMoney,
+  SwapHoriz, ThumbUp, ThumbDown, Add,
 } from '@mui/icons-material';
 
 import KPICards             from '../../../components/shared/KpiCard';
@@ -36,20 +37,23 @@ import {
   JustificationDialog,
   AttendanceEmptyState,
   LockedBadge,
-  AttendanceRateGauge,
 } from '../../../components/attendance/AttendanceShared';
 import {
   getTeacherPayrollReport,
-  getTeacherAttendanceCampusStats,
-  getStudentAttendanceCampusOverview,
+  initTeacherAttendance,
 } from '../../../services/attendance.service';
+import {
+  getAdminPostponements,
+  reviewPostponement,
+  getTeacherSessionsAdmin,
+} from '../../../services/schedule.service';
+import { getTeachers } from '../../../services/teacher.service';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 
 const AttendanceManager = () => {
-  const theme = useTheme();
   const [tab, setTab] = useState(0);
 
   return (
@@ -70,12 +74,14 @@ const AttendanceManager = () => {
           '& .MuiTabs-indicator': { height: 3, borderRadius: 2 },
         }}
       >
-        <Tab value={0} label="Students" icon={<People />} iconPosition="start" />
-        <Tab value={1} label="Teachers" icon={<School />} iconPosition="start" />
+        <Tab value={0} label="Students"      icon={<People />}    iconPosition="start" />
+        <Tab value={1} label="Teachers"      icon={<School />}    iconPosition="start" />
+        <Tab value={2} label="Postponements" icon={<SwapHoriz />} iconPosition="start" />
       </Tabs>
 
       {tab === 0 && <StudentAttendanceTab />}
       {tab === 1 && <TeacherAttendanceTab />}
+      {tab === 2 && <PostponementTab />}
     </Box>
   );
 };
@@ -92,11 +98,10 @@ const StudentAttendanceTab = () => {
   const [dateFrom,       setDateFrom]       = useState('');
   const [dateTo,         setDateTo]         = useState('');
   const [statusFilter,   setStatusFilter]   = useState('');
-  const [search,         setSearch]         = useState('');
 
   const {
     records, summary, loading, error, pagination,
-    filters, handleFilterChange, fetch, toggleStudent, justifyStudent, setPage,
+    handleFilterChange, fetch, toggleStudent, justifyStudent, setPage,
   } = useAttendance('manager-student');
 
   // Apply filters
@@ -248,6 +253,20 @@ const StudentAttendanceTab = () => {
                   </TableCell>
                   <TableCell>
                     <Stack direction="row" spacing={0.5}>
+                      <Tooltip title={record.status ? 'Mark absent' : 'Mark present'}>
+                        <span>
+                          <IconButton
+                            size="small"
+                            color={record.status ? 'error' : 'success'}
+                            onClick={() => handleToggle(record)}
+                            disabled={record.isLocked}
+                          >
+                            {record.status
+                              ? <Cancel fontSize="small" />
+                              : <CheckCircle fontSize="small" />}
+                          </IconButton>
+                        </span>
+                      </Tooltip>
                       {!record.status && (
                         <Tooltip title="Add / view justification">
                           <IconButton size="small" color="info" onClick={() => setJustifyTarget(record)}>
@@ -306,10 +325,15 @@ const TeacherAttendanceTab = () => {
   const [statusFilter,   setStatusFilter]   = useState('');
   const [isPaidFilter,   setIsPaidFilter]   = useState('');
 
+  const [payRefOpen,   setPayRefOpen]   = useState(false);
+  const [payRefTarget, setPayRefTarget] = useState(null);
+  const [payRef,       setPayRef]       = useState('');
+  const [initOpen,     setInitOpen]     = useState(false);
+
   const {
     records, summary, loading, error, pagination,
     fetch, toggleTeacher, justifyTeacher, markPaid, setPage,
-    handleFilterChange,
+    handleFilterChange, handleReset,
   } = useAttendance('manager-teacher');
 
   const handleSearch = () => {
@@ -328,12 +352,31 @@ const TeacherAttendanceTab = () => {
     }
   };
 
-  const handleMarkPaid = async (record) => {
-    const ref = prompt('Enter payment reference:');
-    if (!ref?.trim()) return;
+  const handleToggleTeacher = async (record) => {
+    if (record.isLocked) {
+      showSnackbar('Cannot modify a locked record.', 'warning');
+      return;
+    }
     try {
-      await markPaid(record._id, ref.trim());
+      await toggleTeacher(record._id, !record.status);
+      showSnackbar('Attendance updated.', 'success');
+    } catch {
+      showSnackbar('Failed to update attendance.', 'error');
+    }
+  };
+
+  const handleMarkPaid = (record) => {
+    setPayRefTarget(record);
+    setPayRef('');
+    setPayRefOpen(true);
+  };
+
+  const handlePayRefConfirm = async () => {
+    if (!payRef.trim()) return;
+    try {
+      await markPaid(payRefTarget._id, payRef.trim());
       showSnackbar('Session marked as paid.', 'success');
+      setPayRefOpen(false);
     } catch {
       showSnackbar('Failed to mark as paid.', 'error');
     }
@@ -384,7 +427,14 @@ const TeacherAttendanceTab = () => {
             </Select>
           </FormControl>
           <Button variant="contained" onClick={handleSearch}>Apply</Button>
-          <Button onClick={() => { setDateFrom(''); setDateTo(''); setStatusFilter(''); setIsPaidFilter(''); }}>Reset</Button>
+          <Button onClick={() => { setDateFrom(''); setDateTo(''); setStatusFilter(''); setIsPaidFilter(''); handleReset(); }}>Reset</Button>
+          <Button
+            variant="outlined"
+            startIcon={<Add />}
+            onClick={() => setInitOpen(true)}
+          >
+            Init Attendance
+          </Button>
           <Button
             variant="outlined"
             startIcon={<AttachMoney />}
@@ -467,6 +517,20 @@ const TeacherAttendanceTab = () => {
                   </TableCell>
                   <TableCell>
                     <Stack direction="row" spacing={0.5}>
+                      <Tooltip title={record.status ? 'Mark absent' : 'Mark present'}>
+                        <span>
+                          <IconButton
+                            size="small"
+                            color={record.status ? 'error' : 'success'}
+                            onClick={() => handleToggleTeacher(record)}
+                            disabled={record.isLocked}
+                          >
+                            {record.status
+                              ? <Cancel fontSize="small" />
+                              : <CheckCircle fontSize="small" />}
+                          </IconButton>
+                        </span>
+                      </Tooltip>
                       {!record.status && (
                         <Tooltip title="Add justification">
                           <IconButton size="small" color="info" onClick={() => setJustifyTarget(record)}>
@@ -499,6 +563,47 @@ const TeacherAttendanceTab = () => {
         </TableContainer>
       )}
 
+      {/* Payment reference dialog */}
+      <Dialog
+        open={payRefOpen}
+        onClose={() => setPayRefOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle fontWeight={700}>Mark Session as Paid</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <TextField
+            autoFocus
+            fullWidth
+            label="Payment reference"
+            value={payRef}
+            onChange={(e) => setPayRef(e.target.value)}
+            size="small"
+            onKeyDown={(e) => e.key === 'Enter' && handlePayRefConfirm()}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setPayRefOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handlePayRefConfirm}
+            disabled={!payRef.trim()}
+          >
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Init attendance dialog */}
+      {initOpen && (
+        <InitAttendanceDialog
+          open={initOpen}
+          onClose={() => setInitOpen(false)}
+          onSuccess={() => { setInitOpen(false); fetch(); }}
+        />
+      )}
+
       {/* Payroll report dialog */}
       {payrollOpen && (
         <PayrollDialog open={payrollOpen} onClose={() => setPayrollOpen(false)} />
@@ -519,6 +624,483 @@ const TeacherAttendanceTab = () => {
         </Alert>
       </Snackbar>
     </Box>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POSTPONEMENT TAB
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PostponementTab = () => {
+  const theme = useTheme();
+  const { snackbar, showSnackbar, closeSnackbar } = useFormSnackbar();
+
+  const [rows,        setRows]        = useState([]);
+  const [loading,     setLoading]     = useState(false);
+  const [error,       setError]       = useState(null);
+  const [statusFilter,setStatusFilter]= useState('PENDING');
+  const [pagination,  setPagination]  = useState({ total: 0, page: 1, limit: 50 });
+
+  const [reviewTarget, setReviewTarget] = useState(null);
+  const [reviewStatus, setReviewStatus] = useState('');
+  const [reviewNote,   setReviewNote]   = useState('');
+  const [reviewing,    setReviewing]    = useState(false);
+
+  const load = useCallback(async (page = 1) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await getAdminPostponements({ status: statusFilter, page, limit: 50 });
+      const raw = res.data;
+      setRows(Array.isArray(raw?.data) ? raw.data : []);
+      if (raw?.pagination) setPagination(raw.pagination);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load postponement requests.');
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter]);
+
+  useEffect(() => { load(1); }, [load]);
+
+  const openReview = (row, decision) => {
+    setReviewTarget(row);
+    setReviewStatus(decision);
+    setReviewNote('');
+  };
+
+  const handleReviewConfirm = async () => {
+    if (!reviewTarget) return;
+    setReviewing(true);
+    try {
+      await reviewPostponement(String(reviewTarget.requestId), {
+        status: reviewStatus,
+        reviewNote: reviewNote.trim(),
+      });
+      showSnackbar(`Request ${reviewStatus.toLowerCase()}.`, 'success');
+      setReviewTarget(null);
+      load(pagination.page);
+    } catch (err) {
+      showSnackbar(err.response?.data?.message || 'Review failed.', 'error');
+    } finally {
+      setReviewing(false);
+    }
+  };
+
+  const statusColor = { PENDING: 'warning', APPROVED: 'success', REJECTED: 'error' };
+
+  if (error) return <Alert severity="error">{error}</Alert>;
+
+  return (
+    <Box>
+      {/* Filter bar */}
+      <Paper variant="outlined" sx={{ p: 2, mb: 3, borderRadius: 2 }}>
+        <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel>Status</InputLabel>
+            <Select
+              label="Status"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <MenuItem value="PENDING">Pending</MenuItem>
+              <MenuItem value="APPROVED">Approved</MenuItem>
+              <MenuItem value="REJECTED">Rejected</MenuItem>
+            </Select>
+          </FormControl>
+          <IconButton onClick={() => load(1)} title="Refresh"><Refresh /></IconButton>
+        </Stack>
+      </Paper>
+
+      {loading ? (
+        <Box display="flex" justifyContent="center" py={8}><CircularProgress /></Box>
+      ) : rows.length === 0 ? (
+        <AttendanceEmptyState message={`No ${statusFilter.toLowerCase()} postponement requests.`} />
+      ) : (
+        <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+          <Box sx={{ overflowX: 'auto' }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: alpha(theme.palette.warning.main, 0.06) }}>
+                  <TableCell sx={{ fontWeight: 700 }}>Teacher</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Session</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Reason</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Proposed</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                  {statusFilter === 'PENDING' && (
+                    <TableCell sx={{ fontWeight: 700 }}>Actions</TableCell>
+                  )}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {rows.map((row) => (
+                  <TableRow key={String(row.requestId)} hover>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight={600}>
+                        {row.teacher?.lastName} {row.teacher?.firstName}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {row.teacher?.email}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">{row.reference || '—'}</Typography>
+                      <Typography variant="caption" color="text.secondary">{row.subject}</Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">
+                        {row.sessionStart
+                          ? new Date(row.sessionStart).toLocaleDateString('en-GB')
+                          : '—'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {row.sessionStart
+                          ? new Date(row.sessionStart).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                          : ''}
+                        {row.sessionEnd
+                          ? ` – ${new Date(row.sessionEnd).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
+                          : ''}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ maxWidth: 220 }}>
+                      <Tooltip title={row.reason || ''}>
+                        <Typography variant="body2" noWrap>{row.reason || '—'}</Typography>
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell>
+                      {row.proposedStart ? (
+                        <>
+                          <Typography variant="caption">
+                            {new Date(row.proposedStart).toLocaleDateString('en-GB')}
+                          </Typography>
+                          <br />
+                          <Typography variant="caption" color="text.secondary">
+                            {new Date(row.proposedStart).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                            {row.proposedEnd ? ` – ${new Date(row.proposedEnd).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                          </Typography>
+                        </>
+                      ) : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={row.status}
+                        size="small"
+                        color={statusColor[row.status] || 'default'}
+                      />
+                      {row.reviewNote && (
+                        <Tooltip title={row.reviewNote}>
+                          <Typography variant="caption" display="block" color="text.secondary" noWrap sx={{ maxWidth: 120 }}>
+                            {row.reviewNote}
+                          </Typography>
+                        </Tooltip>
+                      )}
+                    </TableCell>
+                    {statusFilter === 'PENDING' && (
+                      <TableCell>
+                        <Stack direction="row" spacing={0.5}>
+                          <Tooltip title="Approve">
+                            <IconButton
+                              size="small"
+                              color="success"
+                              onClick={() => openReview(row, 'APPROVED')}
+                            >
+                              <ThumbUp fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Reject">
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => openReview(row, 'REJECTED')}
+                            >
+                              <ThumbDown fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Box>
+          <TablePagination
+            component="div"
+            count={pagination.total || rows.length}
+            page={(pagination.page || 1) - 1}
+            rowsPerPage={pagination.limit || 50}
+            onPageChange={(_, p) => load(p + 1)}
+            rowsPerPageOptions={[50]}
+          />
+        </TableContainer>
+      )}
+
+      {/* Review dialog */}
+      <Dialog
+        open={Boolean(reviewTarget)}
+        onClose={() => setReviewTarget(null)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle fontWeight={700}>
+          {reviewStatus === 'APPROVED' ? 'Approve' : 'Reject'} Postponement
+        </DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          {reviewTarget && (
+            <Box mb={2}>
+              <Typography variant="body2">
+                <strong>{reviewTarget.teacher?.lastName} {reviewTarget.teacher?.firstName}</strong>
+                {' — '}{reviewTarget.reference}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">{reviewTarget.reason}</Typography>
+            </Box>
+          )}
+          <TextField
+            fullWidth
+            label="Review note (optional)"
+            value={reviewNote}
+            onChange={(e) => setReviewNote(e.target.value)}
+            multiline
+            rows={3}
+            size="small"
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setReviewTarget(null)}>Cancel</Button>
+          <Button
+            variant="contained"
+            color={reviewStatus === 'APPROVED' ? 'success' : 'error'}
+            onClick={handleReviewConfirm}
+            disabled={reviewing}
+            startIcon={reviewing ? <CircularProgress size={14} color="inherit" /> : null}
+          >
+            Confirm {reviewStatus === 'APPROVED' ? 'Approval' : 'Rejection'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={closeSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert onClose={closeSnackbar} severity={snackbar.severity} variant="filled" sx={{ borderRadius: 2 }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INIT ATTENDANCE DIALOG
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SEMESTERS = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'];
+
+const InitAttendanceDialog = ({ open, onClose, onSuccess }) => {
+  const { snackbar, showSnackbar, closeSnackbar } = useFormSnackbar();
+
+  // Step 1 — teacher + date
+  const [teacherOptions, setTeacherOptions] = useState([]);
+  const [teacherInput,   setTeacherInput]   = useState('');
+  const [teacher,        setTeacher]        = useState(null);
+  const [date,           setDate]           = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
+
+  // Step 2 — session list
+  const [sessions,       setSessions]       = useState([]);
+  const [sessionsLoading,setSessionsLoading]= useState(false);
+  const [session,        setSession]        = useState(null);
+
+  // Step 3 — derived / editable fields
+  const [classId,        setClassId]        = useState('');
+  const [academicYear,   setAcademicYear]   = useState('');
+  const [semester,       setSemester]       = useState('S1');
+
+  const [submitting,     setSubmitting]     = useState(false);
+
+  // Search teachers (debounced by typing)
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      try {
+        const res = await getTeachers({ search: teacherInput, limit: 20 });
+        const raw = res.data;
+        const list = Array.isArray(raw?.data) ? raw.data : [];
+        setTeacherOptions(list);
+      } catch {
+        setTeacherOptions([]);
+      }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [teacherInput]);
+
+  // Load sessions when teacher + date are set
+  useEffect(() => {
+    if (!teacher || !date) { setSessions([]); setSession(null); return; }
+    setSessionsLoading(true);
+    setSession(null);
+    getTeacherSessionsAdmin(teacher._id, { from: date, to: date, includeAllStatuses: 'true' })
+      .then((res) => {
+        const raw = res.data;
+        const list = Array.isArray(raw?.data) ? raw.data : [];
+        setSessions(list);
+      })
+      .catch(() => setSessions([]))
+      .finally(() => setSessionsLoading(false));
+  }, [teacher, date]);
+
+  // Auto-fill fields when session is selected
+  useEffect(() => {
+    if (!session) return;
+    // Use first class if available
+    const firstClass = Array.isArray(session.classes) && session.classes.length > 0
+      ? session.classes[0]
+      : null;
+    setClassId(firstClass?.classId ? String(firstClass.classId) : '');
+    setAcademicYear(session.academicYear || '');
+    setSemester(session.semester || 'S1');
+  }, [session]);
+
+  const canSubmit = teacher && session && classId && academicYear && semester;
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    setSubmitting(true);
+    try {
+      const startDt = new Date(session.startTime);
+      const endDt   = new Date(session.endTime);
+      const pad = (n) => String(n).padStart(2, '0');
+      const toTimeStr = (dt) => `${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+
+      await initTeacherAttendance(session._id, {
+        teacherId:        String(teacher._id),
+        classId,
+        subjectId:        String(session.subject?.subjectId ?? session.subject?._id ?? ''),
+        attendanceDate:   date,
+        academicYear,
+        semester,
+        sessionStartTime: toTimeStr(startDt),
+        sessionEndTime:   toTimeStr(endDt),
+      });
+      showSnackbar('Attendance record initialised.', 'success');
+      setTimeout(onSuccess, 800);
+    } catch (err) {
+      showSnackbar(err.response?.data?.message || 'Failed to initialise attendance.', 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+      <DialogTitle fontWeight={700}>Init Teacher Attendance</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2} mt={1}>
+          {/* Teacher search */}
+          <Autocomplete
+            options={teacherOptions}
+            getOptionLabel={(o) => `${o.lastName || ''} ${o.firstName || ''}`.trim() || o.email || String(o._id)}
+            value={teacher}
+            onChange={(_, v) => setTeacher(v)}
+            inputValue={teacherInput}
+            onInputChange={(_, v) => setTeacherInput(v)}
+            filterOptions={(x) => x}
+            noOptionsText="No teachers found"
+            renderInput={(params) => (
+              <TextField {...params} label="Teacher" size="small" />
+            )}
+          />
+
+          {/* Date */}
+          <TextField
+            label="Session date"
+            type="date"
+            size="small"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+
+          {/* Session selector */}
+          <FormControl size="small" disabled={!teacher || sessionsLoading}>
+            <InputLabel>Session</InputLabel>
+            <Select
+              label="Session"
+              value={session?._id || ''}
+              onChange={(e) => {
+                const s = sessions.find((x) => String(x._id) === e.target.value);
+                setSession(s || null);
+              }}
+            >
+              {sessions.length === 0 && (
+                <MenuItem disabled value="">
+                  {sessionsLoading ? 'Loading…' : 'No sessions on this date'}
+                </MenuItem>
+              )}
+              {sessions.map((s) => {
+                const start = new Date(s.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                const end   = new Date(s.endTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                return (
+                  <MenuItem key={String(s._id)} value={String(s._id)}>
+                    {start}–{end} · {s.subject?.subject_name || s.reference || String(s._id)}
+                  </MenuItem>
+                );
+              })}
+            </Select>
+          </FormControl>
+
+          {/* Class ID — auto-filled, editable override */}
+          <TextField
+            label="Class ID"
+            size="small"
+            value={classId}
+            onChange={(e) => setClassId(e.target.value)}
+            helperText="Auto-filled from session. Override if needed."
+          />
+
+          {/* Academic year + semester */}
+          <Stack direction="row" spacing={2}>
+            <TextField
+              label="Academic year"
+              size="small"
+              value={academicYear}
+              onChange={(e) => setAcademicYear(e.target.value)}
+              placeholder="2024-2025"
+              sx={{ flex: 1 }}
+            />
+            <FormControl size="small" sx={{ minWidth: 100 }}>
+              <InputLabel>Semester</InputLabel>
+              <Select
+                label="Semester"
+                value={semester}
+                onChange={(e) => setSemester(e.target.value)}
+              >
+                {SEMESTERS.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+              </Select>
+            </FormControl>
+          </Stack>
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button
+          variant="contained"
+          onClick={handleSubmit}
+          disabled={!canSubmit || submitting}
+          startIcon={submitting ? <CircularProgress size={14} color="inherit" /> : null}
+        >
+          Create Record
+        </Button>
+      </DialogActions>
+
+      <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={closeSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert onClose={closeSnackbar} severity={snackbar.severity} variant="filled" sx={{ borderRadius: 2 }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Dialog>
   );
 };
 

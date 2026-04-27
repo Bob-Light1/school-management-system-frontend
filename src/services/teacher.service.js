@@ -10,6 +10,10 @@ import api from "../api/axiosInstance";
 export const getTeacherDashboard = () =>
   api.get('/teachers/me/dashboard');
 
+/** GET /teachers — Paginated list of teachers for the campus. */
+export const getTeachers = (params) =>
+  api.get('/teachers', { params });
+
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
 
 export const createTeacher = (data) => api.post('/teachers', data);

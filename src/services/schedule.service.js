@@ -116,3 +116,7 @@ export const getTeacherSessionsAdmin = (teacherId, params) =>
 /** PATCH /schedules/teacher/admin/postpone/:requestId/review — Approve or reject a postponement. */
 export const reviewPostponement = (requestId, data) =>
   api.patch(`/schedules/teacher/admin/postpone/${requestId}/review`, data);
+
+/** GET /schedules/teacher/admin/postponements — List postponement requests for the campus. */
+export const getAdminPostponements = (params) =>
+  api.get('/schedules/teacher/admin/postponements', { params });

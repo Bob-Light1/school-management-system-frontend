@@ -10,8 +10,13 @@
  *
  * Navigation contract:
  *   ScheduleTeacher navigates to /teacher/attendance with:
- *     location.state = { session: <StudentSchedule document> }
+ *     location.state = { session: <TeacherSchedule document> }
  *   This auto-selects the session and switches to the Roll-call tab.
+ *
+ * Roll-call ID contract:
+ *   TeacherSchedule._id          → used for roll-call open/submit (teacher schedule ops)
+ *   TeacherSchedule.studentScheduleRef → used for student attendance init/fetch/toggle/submit
+ *   Falls back to TeacherSchedule._id when studentScheduleRef is null (legacy sessions).
  */
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
@@ -46,6 +51,10 @@ import {
   getMyTeacherAttendance,
   getMyTeacherAttendanceStats,
 } from '../../../services/attendance.service';
+import {
+  openRollCall  as openRollCallAPI,
+  submitRollCall as submitRollCallAPI,
+} from '../../../services/schedule.service';
 import { useLocation } from 'react-router-dom';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -53,12 +62,10 @@ import { useLocation } from 'react-router-dom';
 const AttendanceTeacher = () => {
   const location = useLocation();
 
-  // Auto-switch to roll-call tab when navigated here with a session in state
   const incomingSession = location.state?.session ?? null;
-  const [tab,             setTab]             = useState(incomingSession ? 0 : 0);
+  const [tab,             setTab]             = useState(0);
   const [selectedSession, setSelectedSession] = useState(incomingSession);
 
-  // When the user navigates back here with a different session, update state
   useEffect(() => {
     if (location.state?.session) {
       setSelectedSession(location.state.session);
@@ -88,7 +95,6 @@ const AttendanceTeacher = () => {
         <Tab value={1} label="My Attendance" icon={<History />}  iconPosition="start" />
       </Tabs>
 
-      {/* Always mount both tabs but only show the active one */}
       <Box display={tab === 0 ? 'block' : 'none'}>
         <TeacherRollCallTab
           selectedSession={selectedSession}
@@ -104,7 +110,6 @@ const AttendanceTeacher = () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ROLL-CALL TAB
-// Manages all API calls directly (no useAttendance hook) for precision control.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TeacherRollCallTab = ({ selectedSession, onSessionClear }) => {
@@ -115,11 +120,22 @@ const TeacherRollCallTab = ({ selectedSession, onSessionClear }) => {
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState(null);
 
-  // Derive the first class and a stable date string from the session
+  // TeacherSchedule._id — used for openRollCall / submitRollCall
+  const teacherScheduleId = selectedSession?._id ?? null;
+
+  // StudentSchedule._id — used for all student-attendance API calls.
+  // Falls back to teacherScheduleId when studentScheduleRef is not set
+  // (legacy sessions or unlinked sessions).
+  const studentScheduleId = useMemo(() => {
+    if (!selectedSession) return null;
+    const ref = selectedSession.studentScheduleRef;
+    if (ref && typeof ref === 'object' && ref._id) return String(ref._id);
+    if (ref) return String(ref);
+    return String(selectedSession._id);
+  }, [selectedSession]);
+
   const sessionClassId = useMemo(() => {
     if (!selectedSession) return null;
-    // StudentSchedule stores classes as [{classId, className}]
-    // The controller also accepts a flat `class._id` from older formats
     return (
       selectedSession.classes?.[0]?.classId?._id
       || selectedSession.classes?.[0]?.classId
@@ -134,13 +150,26 @@ const TeacherRollCallTab = ({ selectedSession, onSessionClear }) => {
     return new Date(selectedSession.startTime).toISOString().slice(0, 10);
   }, [selectedSession?.startTime]);
 
-  // Fetch existing attendance records whenever the session changes
+  // Open roll-call automatically when a session is selected (if not already open/submitted).
+  // The backend allows opening up to 30 min before start; 400 = already open → fine.
+  useEffect(() => {
+    if (!teacherScheduleId) return;
+    const { opened, submitted } = selectedSession?.rollCall ?? {};
+    if (opened || submitted) return;
+
+    openRollCallAPI(teacherScheduleId).catch((err) => {
+      if (err.response?.status !== 400) {
+        console.warn('[RollCall] openRollCall:', err?.response?.data?.message ?? err.message);
+      }
+    });
+  }, [teacherScheduleId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const loadRecords = useCallback(async () => {
-    if (!selectedSession?._id) return;
+    if (!studentScheduleId) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await getSessionStudentAttendance(selectedSession._id, {
+      const res = await getSessionStudentAttendance(studentScheduleId, {
         date:    attendanceDateISO,
         classId: sessionClassId,
       });
@@ -152,7 +181,7 @@ const TeacherRollCallTab = ({ selectedSession, onSessionClear }) => {
     } finally {
       setLoading(false);
     }
-  }, [selectedSession?._id, attendanceDateISO, sessionClassId]);
+  }, [studentScheduleId, attendanceDateISO, sessionClassId]);
 
   useEffect(() => {
     loadRecords();
@@ -160,6 +189,8 @@ const TeacherRollCallTab = ({ selectedSession, onSessionClear }) => {
 
   // ── Mutations ──────────────────────────────────────────────────────────────
 
+  // RollCallSheet calls onInit(scheduleId, payload) where scheduleId = session._id
+  // passed to the sheet = studentScheduleId (see <RollCallSheet session=... />).
   const handleInit = useCallback(async (scheduleId, payload) => {
     await initStudentAttendance(scheduleId, payload);
     await loadRecords();
@@ -176,16 +207,25 @@ const TeacherRollCallTab = ({ selectedSession, onSessionClear }) => {
     await loadRecords();
   }, [loadRecords, showSnackbar]);
 
+  // Called by RollCallSheet with (scheduleId = studentScheduleId, date, classId).
+  // 1. Locks individual student records via the student-attendance API.
+  // 2. Submits aggregate counts on the TeacherSchedule (enables delivered-hours tracking).
   const handleSubmit = useCallback(async (scheduleId, date, classId) => {
-    await submitStudentAttendance(scheduleId, {
-      attendanceDate: date,
-      classId,
-    });
+    await submitStudentAttendance(scheduleId, { attendanceDate: date, classId });
+
+    if (teacherScheduleId) {
+      const present = records.filter((r) => r.status === true).length;
+      const absent  = records.filter((r) => r.status === false).length;
+      submitRollCallAPI(teacherScheduleId, { present, absent, late: 0 }).catch((err) => {
+        console.warn('[RollCall] submitRollCall:', err?.response?.data?.message ?? err.message);
+      });
+    }
+
     showSnackbar('Attendance sheet locked successfully.', 'success');
     await loadRecords();
-  }, [loadRecords, showSnackbar]);
+  }, [teacherScheduleId, records, loadRecords, showSnackbar]);
 
-  // ── Summary computed locally ───────────────────────────────────────────────
+  // ── Summary ────────────────────────────────────────────────────────────────
 
   const summary = useMemo(() => {
     const total     = records.length;
@@ -237,7 +277,6 @@ const TeacherRollCallTab = ({ selectedSession, onSessionClear }) => {
 
   return (
     <Box>
-      {/* Session info banner */}
       <Paper variant="outlined" sx={{ p: 2, mb: 3, borderRadius: 2 }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }} justifyContent="space-between">
           <Stack direction="row" spacing={2} alignItems="center">
@@ -266,7 +305,9 @@ const TeacherRollCallTab = ({ selectedSession, onSessionClear }) => {
       <RollCallSheet
         session={{
           ...selectedSession,
-          // Normalise: RollCallSheet expects session.class and session.subject as objects
+          // Override _id so RollCallSheet uses the StudentSchedule ID for student attendance ops.
+          // Teacher schedule ID (teacherScheduleId) is kept in the closure above for rollcall open/submit.
+          _id:     studentScheduleId,
           class:   { _id: sessionClassId, className },
           subject: {
             _id:  selectedSession.subject?.subjectId || selectedSession.subject?._id || selectedSession.subject,
@@ -297,7 +338,7 @@ const TeacherRollCallTab = ({ selectedSession, onSessionClear }) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SELF-SERVICE TAB — teacher's own attendance history
+// SELF-SERVICE TAB
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TeacherSelfTab = () => {
@@ -378,7 +419,6 @@ const TeacherSelfTab = () => {
         </Button>
       </Stack>
 
-      {/* Stats KPIs */}
       {statsLoading ? (
         <Box display="flex" justifyContent="center" py={4}><CircularProgress /></Box>
       ) : statsData ? (
@@ -395,7 +435,6 @@ const TeacherSelfTab = () => {
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      {/* Records table */}
       {loading ? (
         <Box display="flex" justifyContent="center" py={8}><CircularProgress /></Box>
       ) : records.length === 0 ? (
