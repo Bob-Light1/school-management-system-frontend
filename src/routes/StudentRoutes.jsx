@@ -28,7 +28,7 @@ const DocumentStudent = lazy(() =>
 
 export const studentRoutes = (
   <>
-    <Route index element={<StudentDetails />} />
+    <Route index element={<StudentDashboard />} />
     <Route path="schedule"   element={<ScheduleStudent />} />
     <Route path="examination" element={<ExamStudent />} />
     <Route path="results"    element={<ResultStudent />} />

@@ -16,7 +16,7 @@ import AppShell from '../components/AppShell';
 
 const navItems = [
   { link: '/',                    label: 'Home',        icon: HomeIcon },
-  { link: '/teacher',             label: 'My Details',  icon: DashboardCustomizeIcon },
+  { link: '/teacher',             label: 'Dashboard',  icon: DashboardCustomizeIcon },
   { link: '/teacher/examination', label: 'Examination', icon: ExplicitIcon },
   { link: '/teacher/results',     label: 'Results',     icon: AssessmentIcon },
   { link: '/teacher/schedule',    label: 'Schedule',    icon: EventNoteIcon },
