@@ -5,7 +5,6 @@ import { lazy } from 'react';
 
 const ParentDashboard  = lazy(() => import('../parent/components/dashboard/ParentDashboard'));
 const ParentProfile    = lazy(() => import('../parent/components/profile/ParentProfile'));
-const ParentDetails    = lazy(() => import('../parent/components/parentDetails/ParentDetails'));
 const NotifParent      = lazy(() => import('../parent/components/notification/NotifParent'));
 
 // ─── Child-scoped pages ───────────────────────────────────────────────────────
@@ -37,7 +36,6 @@ export const parentRoutes = (
     {/* Self-service */}
     <Route path="profile"      element={<ParentProfile />} />
     <Route path="notification" element={<NotifParent />} />
-    <Route path="details"      element={<ParentDetails />} />
 
     {/* Child-scoped — all require :studentId */}
     <Route path="children/:studentId/results"      element={<ChildResults />} />
