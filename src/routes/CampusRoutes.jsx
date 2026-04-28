@@ -41,6 +41,9 @@ const Notification = lazy(() =>
 const Document = lazy(() =>
   import('../campus/components/documents/Document')
 );
+const Print = lazy(() =>
+  import('../campus/components/print/Print')
+);
 
 export const campusRoutes = (
   <>
@@ -58,5 +61,6 @@ export const campusRoutes = (
     <Route path="attendance" element={<Attendance />} />
     <Route path="notification" element={<Notification />} />
     <Route path="documents"  element={<Document />} />
+    <Route path="print"      element={<Print />} />
   </>
 );
