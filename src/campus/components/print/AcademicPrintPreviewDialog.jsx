@@ -52,12 +52,24 @@ const AcademicPrintPreviewDialog = ({
     revokePreviousBlob();
 
     try {
-      const res  = await previewAcademicPdf({ type, studentId, classId, params });
-      const url  = URL.createObjectURL(res.data);
+      const res = await previewAcademicPdf({ type, studentId, classId, params });
+      const url = URL.createObjectURL(res.data);
       blobRef.current = url;
       setBlobUrl(url);
     } catch (err) {
-      const msg = err?.response?.data?.message ?? err.message ?? 'Preview generation failed.';
+      // With responseType:'blob', error response.data is a Blob — parse it as text
+      let msg = err.message ?? 'Preview generation failed.';
+      if (err?.response?.data instanceof Blob) {
+        try {
+          const text   = await err.response.data.text();
+          const parsed = JSON.parse(text);
+          msg = parsed?.message ?? msg;
+        } catch {
+          // blob was not JSON — keep default message
+        }
+      } else if (err?.response?.data?.message) {
+        msg = err.response.data.message;
+      }
       setError(msg);
     } finally {
       setLoading(false);
@@ -84,7 +96,7 @@ const AcademicPrintPreviewDialog = ({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth
-      PaperProps={{ sx: { height: '90vh', display: 'flex', flexDirection: 'column' } }}
+      slotProps={{ paper: { sx: { height: '90vh', display: 'flex', flexDirection: 'column' } } }}
     >
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pr: 1 }}>
         <PictureAsPdf color="error" />

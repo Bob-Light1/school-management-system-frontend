@@ -6,7 +6,7 @@ import {
   Paper, CircularProgress, Tooltip, IconButton,
   Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Snackbar,
-  alpha, useTheme,
+  useTheme,
 } from '@mui/material';
 import {
   CreditCard, Description, AssignmentInd, CalendarMonth,
@@ -15,7 +15,6 @@ import {
 
 import { AuthContext }                from '../../../context/AuthContext';
 import { startBatchPrintJob, listPrintJobs } from '../../../services/academic_print.service';
-import { getStudents }                from '../../../services/student.service';
 import api                            from '../../../api/axiosInstance';
 
 import AcademicPrintPreviewDialog     from './AcademicPrintPreviewDialog';
@@ -24,10 +23,10 @@ import AcademicBatchDrawer            from './AcademicBatchDrawer';
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { value: 'STUDENT_CARD', label: 'ID Cards',        icon: <CreditCard /> },
-  { value: 'TRANSCRIPT',   label: 'Transcripts',     icon: <Description /> },
-  { value: 'ENROLLMENT',   label: 'Certificates',    icon: <AssignmentInd /> },
-  { value: 'TIMETABLE',    label: 'Timetables',      icon: <CalendarMonth /> },
+  { value: 'STUDENT_CARD', label: 'ID Cards',    icon: <CreditCard /> },
+  { value: 'TRANSCRIPT',   label: 'Transcripts', icon: <Description /> },
+  { value: 'ENROLLMENT',   label: 'Certificates',icon: <AssignmentInd /> },
+  { value: 'TIMETABLE',    label: 'Timetables',  icon: <CalendarMonth /> },
 ];
 
 const CURRENT_YEAR = `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
@@ -36,9 +35,10 @@ const YEARS = [0, 1, 2].map((i) => {
   return `${y}-${y + 1}`;
 });
 
-const STATUS_COLORS = { PENDING: 'default', PROCESSING: 'info', DONE: 'success', PARTIAL: 'warning', ERROR: 'error' };
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
+const STATUS_COLORS = {
+  PENDING: 'default', PROCESSING: 'info', DONE: 'success',
+  PARTIAL: 'warning', ERROR: 'error',
+};
 
 const currentMonday = () => {
   const d   = new Date();
@@ -49,34 +49,19 @@ const currentMonday = () => {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-/**
- * AcademicPrintPanel
- *
- * Main print management panel for CAMPUS_MANAGER / ADMIN / DIRECTOR.
- * Four document types accessible via tabs:
- *   - STUDENT_CARD  : CR80 ID card
- *   - TRANSCRIPT    : Semester bulletin
- *   - ENROLLMENT    : Enrollment certificate
- *   - TIMETABLE     : Class weekly timetable
- *
- * Actions per tab:
- *   Preview  → opens AcademicPrintPreviewDialog (single student / class)
- *   Print All → starts batch job → opens AcademicBatchDrawer for tracking
- */
 const AcademicPrintPanel = () => {
-  const { user }        = useContext(AuthContext);
-  const campusId        = user?.campusId;
-  const theme           = useTheme();
+  const { user }  = useContext(AuthContext);
+  const theme     = useTheme();
 
   // ── Tab ────────────────────────────────────────────────────────────────────
   const [tab, setTab] = useState('STUDENT_CARD');
 
   // ── Shared filters ─────────────────────────────────────────────────────────
-  const [classes,       setClasses]       = useState([]);
-  const [classId,       setClassId]       = useState('');
-  const [academicYear,  setAcademicYear]  = useState(CURRENT_YEAR);
-  const [semester,      setSemester]      = useState('S1');
-  const [weekStart,     setWeekStart]     = useState(currentMonday());
+  const [classes,        setClasses]        = useState([]);
+  const [classId,        setClassId]        = useState('');
+  const [academicYear,   setAcademicYear]   = useState(CURRENT_YEAR);
+  const [semester,       setSemester]       = useState('S1');
+  const [weekStart,      setWeekStart]      = useState(currentMonday());
   const [loadingClasses, setLoadingClasses] = useState(false);
 
   // ── Student selector (preview of a single student) ─────────────────────────
@@ -86,7 +71,7 @@ const AcademicPrintPanel = () => {
   const [loadingStudents, setLoadingStudents] = useState(false);
 
   // ── Preview dialog ─────────────────────────────────────────────────────────
-  const [previewOpen,   setPreviewOpen]   = useState(false);
+  const [previewOpen,    setPreviewOpen]    = useState(false);
   const [previewStudent, setPreviewStudent] = useState(null);
 
   // ── Batch ──────────────────────────────────────────────────────────────────
@@ -95,7 +80,7 @@ const AcademicPrintPanel = () => {
   const [drawerOpen,   setDrawerOpen]   = useState(false);
 
   // ── Job history ────────────────────────────────────────────────────────────
-  const [jobs,       setJobs]       = useState([]);
+  const [jobs,        setJobs]        = useState([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
 
   // ── Snackbar ───────────────────────────────────────────────────────────────
@@ -103,18 +88,18 @@ const AcademicPrintPanel = () => {
   const showSnack = (message, severity = 'info') => setSnack({ open: true, message, severity });
 
   // ── Load classes ───────────────────────────────────────────────────────────
+  // Campus isolation is handled server-side via JWT — no campusId param needed.
   const loadClasses = useCallback(async () => {
-    if (!campusId) return;
     setLoadingClasses(true);
     try {
-      const res = await api.get('/class', { params: { campusId, limit: 200 } });
+      const res = await api.get('/class', { params: { limit: 200 } });
       setClasses(res.data?.data ?? []);
     } catch {
       showSnack('Could not load classes.', 'error');
     } finally {
       setLoadingClasses(false);
     }
-  }, [campusId]);
+  }, []);
 
   useEffect(() => { loadClasses(); }, [loadClasses]);
 
@@ -123,7 +108,9 @@ const AcademicPrintPanel = () => {
     if (!classId) { setStudents([]); return; }
     setLoadingStudents(true);
     try {
-      const res = await getStudents({ classId, search, limit: 50 });
+      const res = await api.get('/students', {
+        params: { classId, search, status: 'active', limit: 50 },
+      });
       setStudents(res.data?.data ?? []);
     } catch {
       setStudents([]);
@@ -183,16 +170,20 @@ const AcademicPrintPanel = () => {
   // ── Batch print ─────────────────────────────────────────────────────────────
   const handleBatch = async () => {
     if (!classId) return showSnack('Select a class first.', 'warning');
-    if ((tab === 'TRANSCRIPT') && (!academicYear || !semester)) {
+    if (tab === 'TRANSCRIPT' && (!academicYear || !semester)) {
       return showSnack('Set academic year and semester.', 'warning');
     }
 
     setBatchLoading(true);
     try {
       const res = await startBatchPrintJob({
-        type:    tab,
+        type:   tab,
         classId,
-        params:  { academicYear, semester, weekStart: tab === 'TIMETABLE' ? weekStart : undefined },
+        params: {
+          academicYear,
+          semester,
+          weekStart: tab === 'TIMETABLE' ? weekStart : undefined,
+        },
       });
       const jobId = res.data?.data?.jobId;
       setActiveJobId(jobId);
@@ -206,10 +197,8 @@ const AcademicPrintPanel = () => {
     }
   };
 
-  // ── Selected class label ────────────────────────────────────────────────────
   const selectedClass = classes.find((c) => c._id === classId);
 
-  // ── Preview label ──────────────────────────────────────────────────────────
   const previewLabel = tab === 'TIMETABLE'
     ? (selectedClass?.className || classId)
     : (selectedStudent ? `${selectedStudent.firstName} ${selectedStudent.lastName}` : '');
@@ -236,8 +225,9 @@ const AcademicPrintPanel = () => {
           sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
           {TABS.map((t) => (
-            <Tab key={t.value} value={t.value} label={t.label} icon={t.icon} iconPosition="start"
-              sx={{ minHeight: 56 }}
+            <Tab
+              key={t.value} value={t.value} label={t.label} icon={t.icon}
+              iconPosition="start" sx={{ minHeight: 56 }}
             />
           ))}
         </Tabs>
@@ -248,12 +238,14 @@ const AcademicPrintPanel = () => {
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} flexWrap="wrap">
 
               {/* Class selector */}
-              <FormControl size="small" sx={{ minWidth: 200 }} disabled={loadingClasses}>
-                <InputLabel>Class</InputLabel>
+              <FormControl size="small" sx={{ minWidth: 220 }} disabled={loadingClasses}>
+                <InputLabel>
+                  {loadingClasses ? 'Loading classes…' : 'Class'}
+                </InputLabel>
                 <Select
                   value={classId}
                   onChange={(e) => setClassId(e.target.value)}
-                  label="Class"
+                  label={loadingClasses ? 'Loading classes…' : 'Class'}
                 >
                   <MenuItem value=""><em>— Select class —</em></MenuItem>
                   {classes.map((c) => (
@@ -262,7 +254,7 @@ const AcademicPrintPanel = () => {
                 </Select>
               </FormControl>
 
-              {/* Academic year — not needed for TIMETABLE */}
+              {/* Academic year — not shown for TIMETABLE */}
               {tab !== 'TIMETABLE' && (
                 <FormControl size="small" sx={{ minWidth: 160 }}>
                   <InputLabel>Academic Year</InputLabel>
@@ -306,11 +298,13 @@ const AcademicPrintPanel = () => {
               )}
             </Stack>
 
-            {/* ── Student selector (single preview, not for timetable) ──── */}
+            {/* ── Student selector (preview only, not for timetable) ────── */}
             {tab !== 'TIMETABLE' && (
               <Autocomplete
                 options={students}
-                getOptionLabel={(s) => `${s.firstName} ${s.lastName}${s.matricule ? ' · ' + s.matricule : ''}`}
+                getOptionLabel={(s) =>
+                  `${s.firstName} ${s.lastName}${s.matricule ? ' · ' + s.matricule : ''}`
+                }
                 value={selectedStudent}
                 onChange={(_, v) => setSelectedStudent(v)}
                 inputValue={studentInput}
@@ -352,11 +346,18 @@ const AcademicPrintPanel = () => {
 
               <Button
                 variant="contained"
-                startIcon={batchLoading ? <CircularProgress size={16} color="inherit" /> : <Print />}
+                startIcon={
+                  batchLoading
+                    ? <CircularProgress size={16} color="inherit" />
+                    : <Print />
+                }
                 onClick={handleBatch}
                 disabled={!classId || batchLoading}
               >
-                {batchLoading ? 'Starting…' : `Print All${selectedClass ? ' — ' + selectedClass.className : ''}`}
+                {batchLoading
+                  ? 'Starting…'
+                  : `Print All${selectedClass ? ' — ' + selectedClass.className : ''}`
+                }
               </Button>
 
               {activeJobId && (
@@ -374,17 +375,20 @@ const AcademicPrintPanel = () => {
             {/* ── Type-specific hints ────────────────────────────────────── */}
             {tab === 'STUDENT_CARD' && (
               <Alert severity="info" sx={{ mt: 0.5 }}>
-                ID cards are generated in CR80 format (85.6×54mm), double-sided. Each card embeds a QR code linking to the student verification URL.
+                ID cards are generated in CR80 format (85.6×54mm). Each card embeds a QR code
+                linking to the student verification URL.
               </Alert>
             )}
             {tab === 'TRANSCRIPT' && (
               <Alert severity="info" sx={{ mt: 0.5 }}>
-                Transcripts are fetched from locked semester records (FinalTranscript). Make sure the semester has been closed before printing.
+                Transcripts are fetched from locked semester records (FinalTranscript).
+                Make sure the semester has been closed before printing.
               </Alert>
             )}
             {tab === 'TIMETABLE' && (
               <Alert severity="info" sx={{ mt: 0.5 }}>
-                The timetable shows all published sessions for the selected week. Choose the Monday of the target week above.
+                The timetable shows all published sessions for the selected week.
+                Choose the Monday of the target week above.
               </Alert>
             )}
           </Stack>
@@ -505,7 +509,11 @@ const AcademicPrintPanel = () => {
         onClose={() => setSnack((s) => ({ ...s, open: false }))}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert severity={snack.severity} onClose={() => setSnack((s) => ({ ...s, open: false }))} variant="filled">
+        <Alert
+          severity={snack.severity}
+          onClose={() => setSnack((s) => ({ ...s, open: false }))}
+          variant="filled"
+        >
           {snack.message}
         </Alert>
       </Snackbar>
