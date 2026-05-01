@@ -10,10 +10,12 @@ import {
 import { previewAcademicPdf } from '../../../services/academic_print.service';
 
 const TYPE_LABELS = {
-  STUDENT_CARD: 'Student ID Card',
-  TRANSCRIPT:   'Academic Transcript',
-  ENROLLMENT:   'Enrollment Certificate',
-  TIMETABLE:    'Class Timetable',
+  STUDENT_CARD:  'Student ID Card',
+  TRANSCRIPT:    'Academic Transcript',
+  ENROLLMENT:    'Enrollment Certificate',
+  TIMETABLE:     'Class Timetable',
+  STUDENT_LIST:  'Student List',
+  TEACHER_LIST:  'Teacher List',
 };
 
 /**

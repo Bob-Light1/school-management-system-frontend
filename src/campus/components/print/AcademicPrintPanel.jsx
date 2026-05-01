@@ -11,6 +11,7 @@ import {
 import {
   CreditCard, Description, AssignmentInd, CalendarMonth,
   Preview, Print, Refresh, OpenInNew, History,
+  People, School,
 } from '@mui/icons-material';
 
 import { AuthContext }                from '../../../context/AuthContext';
@@ -23,11 +24,16 @@ import AcademicBatchDrawer            from './AcademicBatchDrawer';
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { value: 'STUDENT_CARD', label: 'ID Cards',    icon: <CreditCard /> },
-  { value: 'TRANSCRIPT',   label: 'Transcripts', icon: <Description /> },
-  { value: 'ENROLLMENT',   label: 'Certificates',icon: <AssignmentInd /> },
-  { value: 'TIMETABLE',    label: 'Timetables',  icon: <CalendarMonth /> },
+  { value: 'STUDENT_CARD',  label: 'ID Cards',       icon: <CreditCard /> },
+  { value: 'TRANSCRIPT',    label: 'Transcripts',    icon: <Description /> },
+  { value: 'ENROLLMENT',    label: 'Certificates',   icon: <AssignmentInd /> },
+  { value: 'TIMETABLE',     label: 'Timetables',     icon: <CalendarMonth /> },
+  { value: 'STUDENT_LIST',  label: 'Student List',   icon: <People /> },
+  { value: 'TEACHER_LIST',  label: 'Teacher List',   icon: <School /> },
 ];
+
+// Types that require only a class selection (no individual student needed)
+const CLASS_ONLY_TABS = ['TIMETABLE', 'STUDENT_LIST', 'TEACHER_LIST'];
 
 const CURRENT_YEAR = `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
 const YEARS = [0, 1, 2].map((i) => {
@@ -147,7 +153,7 @@ const AcademicPrintPanel = () => {
 
   // ── Preview ─────────────────────────────────────────────────────────────────
   const handlePreview = () => {
-    if (tab === 'TIMETABLE') {
+    if (CLASS_ONLY_TABS.includes(tab)) {
       if (!classId) return showSnack('Select a class first.', 'warning');
       setPreviewStudent(null);
       setPreviewOpen(true);
@@ -199,7 +205,7 @@ const AcademicPrintPanel = () => {
 
   const selectedClass = classes.find((c) => c._id === classId);
 
-  const previewLabel = tab === 'TIMETABLE'
+  const previewLabel = CLASS_ONLY_TABS.includes(tab)
     ? (selectedClass?.className || classId)
     : (selectedStudent ? `${selectedStudent.firstName} ${selectedStudent.lastName}` : '');
 
@@ -298,8 +304,8 @@ const AcademicPrintPanel = () => {
               )}
             </Stack>
 
-            {/* ── Student selector (preview only, not for timetable) ────── */}
-            {tab !== 'TIMETABLE' && (
+            {/* ── Student selector (preview only, not for class-level types) ── */}
+            {!CLASS_ONLY_TABS.includes(tab) && (
               <Autocomplete
                 options={students}
                 getOptionLabel={(s) =>
@@ -339,7 +345,7 @@ const AcademicPrintPanel = () => {
                 variant="outlined"
                 startIcon={<Preview />}
                 onClick={handlePreview}
-                disabled={tab === 'TIMETABLE' ? !classId : !selectedStudent}
+                disabled={CLASS_ONLY_TABS.includes(tab) ? !classId : !selectedStudent}
               >
                 Preview
               </Button>
@@ -389,6 +395,18 @@ const AcademicPrintPanel = () => {
               <Alert severity="info" sx={{ mt: 0.5 }}>
                 The timetable shows all published sessions for the selected week.
                 Choose the Monday of the target week above.
+              </Alert>
+            )}
+            {tab === 'STUDENT_LIST' && (
+              <Alert severity="info" sx={{ mt: 0.5 }}>
+                Generates a printable A4 roster of all active students in the selected class,
+                sorted alphabetically. Select a class and click Preview or Print.
+              </Alert>
+            )}
+            {tab === 'TEACHER_LIST' && (
+              <Alert severity="info" sx={{ mt: 0.5 }}>
+                Generates a printable A4 list of instructors assigned to the selected class,
+                derived from scheduled sessions. Select a class and click Preview or Print.
               </Alert>
             )}
           </Stack>
@@ -489,8 +507,8 @@ const AcademicPrintPanel = () => {
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
         type={tab}
-        studentId={tab !== 'TIMETABLE' ? previewStudent?._id : undefined}
-        classId={tab === 'TIMETABLE' ? classId : undefined}
+        studentId={!CLASS_ONLY_TABS.includes(tab) ? previewStudent?._id : undefined}
+        classId={CLASS_ONLY_TABS.includes(tab) ? classId : undefined}
         params={previewParams}
         label={previewLabel}
       />
